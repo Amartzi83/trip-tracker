@@ -443,12 +443,33 @@ export default function App(){
           <button style={B1} onClick={saveEditTrip}>Save Changes</button></div>
       </div><TabBar/></div>);}
 
-    if(sub==="exportView"){const csv=getCSV();return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 100px"}}><style>{css}</style>{toastEl}<div style={{maxWidth:480,margin:"0 auto"}}>
-      <button onClick={()=>setSub(null)} style={BK}><ChevronLeft size={18}/>Back</button>
-      <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 24px",display:"flex",alignItems:"center",gap:8}}><Download size={20} style={{color:"var(--accent)"}}/>Export</h2>
-      <div style={{...C,marginBottom:16}}><textarea readOnly value={csv} style={{...I,minHeight:200,fontSize:11,fontFamily:"monospace",resize:"vertical"}} onClick={e=>e.target.select()}/><button style={{...B1,marginTop:14}} onClick={()=>copyTxt(csv)}><Copy size={16} style={{marginRight:6}}/>Copy CSV</button>
-        <p style={{fontSize:11,color:"var(--text2)",marginTop:8,textAlign:"center"}}>Paste into Excel or Google Sheets</p></div>
-    </div><TabBar/></div>);}
+    if(sub==="exportView"){
+      const csv=getCSV();
+      function dlCSV(){
+        const bom='﻿';
+        const blob=new Blob([bom+csv],{type:'text/csv;charset=utf-8;'});
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a');
+        a.href=url;
+        a.download=`${(trip.name||'trip').replace(/[^a-z0-9]/gi,'_')}_expenses.csv`;
+        document.body.appendChild(a);a.click();document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        show("Downloaded!");
+      }
+      return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 100px"}}><style>{css}</style>{toastEl}<div style={{maxWidth:480,margin:"0 auto"}}>
+        <button onClick={()=>setSub(null)} style={BK}><ChevronLeft size={18}/>Back</button>
+        <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 24px",display:"flex",alignItems:"center",gap:8}}><Download size={20} style={{color:"var(--accent)"}}/>Export</h2>
+        <div style={{...C,marginBottom:16}}>
+          <button style={{...B1,display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:10}} onClick={dlCSV}><Download size={18}/>Download CSV File</button>
+          <button style={{...B2,display:"flex",alignItems:"center",justifyContent:"center",gap:8}} onClick={()=>copyTxt(csv)}><Copy size={16}/>Copy to Clipboard</button>
+          <p style={{fontSize:11,color:"var(--text2)",marginTop:12,textAlign:"center"}}>Open in Excel, Google Sheets or Numbers</p>
+        </div>
+        <div style={{...C}}>
+          <label style={L}>Preview</label>
+          <textarea readOnly value={csv} style={{...I,minHeight:180,fontSize:10,fontFamily:"monospace",resize:"vertical"}} onClick={e=>e.target.select()}/>
+        </div>
+      </div><TabBar/></div>);
+    }
 
     if(sub==="shareView"){const text=getShareText();return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 100px"}}><style>{css}</style>{toastEl}<div style={{maxWidth:480,margin:"0 auto"}}>
       <button onClick={()=>setSub(null)} style={BK}><ChevronLeft size={18}/>Back</button>
