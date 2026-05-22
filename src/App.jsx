@@ -461,8 +461,7 @@ export default function App(){
         <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 24px",display:"flex",alignItems:"center",gap:8}}><Download size={20} style={{color:"var(--accent)"}}/>Export</h2>
         <div style={{...C,marginBottom:16}}>
           <button style={{...B1,display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:10}} onClick={dlCSV}><Download size={18}/>Download CSV File</button>
-          <button style={{...B2,display:"flex",alignItems:"center",justifyContent:"center",gap:8}} onClick={()=>copyTxt(csv)}><Copy size={16}/>Copy to Clipboard</button>
-          <p style={{fontSize:11,color:"var(--text2)",marginTop:12,textAlign:"center"}}>Open in Excel, Google Sheets or Numbers</p>
+          <p style={{fontSize:11,color:"var(--text2)",marginTop:4,textAlign:"center"}}>Open in Excel, Google Sheets or Numbers</p>
         </div>
         <div style={{...C}}>
           <label style={L}>Preview</label>
