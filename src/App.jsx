@@ -146,9 +146,18 @@ export default function App(){
   useEffect(()=>{if(window.speechSynthesis){window.speechSynthesis.getVoices()}},[]);
 
   function cv(a,f,t){if(f===t)return a;return a/(rates[f]||1)*(rates[t]||1)}
-  function speak(text,lang){if(!text)return;const lm={en:"en",he:"iw",th:"th",es:"es",fr:"fr",de:"de",it:"it",pt:"pt",ja:"ja",zh:"zh-CN",ko:"ko",ar:"ar",tr:"tr",ru:"ru",hi:"hi",vi:"vi",el:"el",nl:"nl"};const tl=lm[lang]||lang;
-    const audio=new Audio(`https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${tl}&q=${encodeURIComponent(text.slice(0,200))}`);
-    audio.play().catch(()=>{if(window.speechSynthesis){window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang=tl;u.rate=0.85;window.speechSynthesis.speak(u)}})}
+  function speak(text,lang){
+    if(!text||!window.speechSynthesis)return;
+    const lm={en:"en-US",he:"he-IL",th:"th-TH",es:"es-ES",fr:"fr-FR",de:"de-DE",it:"it-IT",pt:"pt-PT",ja:"ja-JP",zh:"zh-CN",ko:"ko-KR",ar:"ar-SA",tr:"tr-TR",ru:"ru-RU",hi:"hi-IN",vi:"vi-VN",el:"el-GR",nl:"nl-NL"};
+    const langCode=lm[lang]||lang;
+    window.speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text);
+    u.lang=langCode;u.rate=0.85;
+    const voices=window.speechSynthesis.getVoices();
+    const voice=voices.find(v=>v.lang===langCode)||voices.find(v=>v.lang.startsWith(langCode.split('-')[0]));
+    if(voice)u.voice=voice;
+    window.speechSynthesis.speak(u);
+  }
   function copyTxt(t){try{const a=document.createElement("textarea");a.value=t;a.style.cssText="position:fixed;opacity:0";document.body.appendChild(a);a.select();document.execCommand("copy");document.body.removeChild(a);show("Copied!");return true}catch{return false}}
 
 
@@ -173,24 +182,40 @@ export default function App(){
   function getCSV(){if(!trip)return"";const r=[["Date","Category","Amount","Currency",`Converted(${trip.currency})`,"Note","Type"]];trip.expenses.forEach(e=>{const c=CATS.find(x=>x.id===e.category);r.push([e.date||"General",c?.name||e.category,e.amount,e.currency,cv(e.amount,e.currency,trip.currency).toFixed(2),e.note,e.date?"Dated":"General"])});return r.map(r=>r.map(c=>`"${c}"`).join(",")).join("\n")}
   function getShareText(){if(!trip)return"";return`✈️ ${trip.name}\n📅 ${trip.startDate||"?"} → ${trip.endDate||"?"}\n💰 ${fC(totalSpent,trip.currency)}\n📊 Budget: ${trip.budget?fC(trip.budget,trip.currency):"N/A"}\n📝 ${trip.expenses.length} expenses`}
 
-  // ─── Translate via MyMemory (free, no API key) ───
+  // ─── Translate via Google Translate (free, no API key) ───
   async function doTranslate(text){
     if(!text.trim())return;
     setTrLoading(true);setTrResult("");
     try{
+      const url=`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${trFrom}&tl=${trTo}&dt=t&q=${encodeURIComponent(text.trim())}`;
+      const r=await fetch(url);
+      if(r.ok){
+        const d=await r.json();
+        const tr=d?.[0]?.map(x=>x?.[0]).filter(Boolean).join('')||'';
+        if(tr){
+          setTrResult(tr);
+          const fl=LANGS.find(l=>l.code===trFrom)?.name;
+          const tl=LANGS.find(l=>l.code===trTo)?.name;
+          setTrHistory(h=>[{fl,tl,orig:text.trim(),trans:tr},...h].slice(0,20));
+          setTrLoading(false);return;
+        }
+      }
+    }catch{}
+    // Fallback: MyMemory
+    try{
       const url=`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text.trim())}&langpair=${trFrom}|${trTo}`;
       const r=await fetch(url);
       const d=await r.json();
-      const tr=d?.responseData?.translatedText||"";
-      if(tr&&d.responseStatus===200){
+      const tr=d?.responseData?.translatedText||'';
+      if(tr&&!tr.startsWith('MYMEMORY WARNING')){
         setTrResult(tr);
         const fl=LANGS.find(l=>l.code===trFrom)?.name;
         const tl=LANGS.find(l=>l.code===trTo)?.name;
         setTrHistory(h=>[{fl,tl,orig:text.trim(),trans:tr},...h].slice(0,20));
       }else{
-        setTrResult(d?.responseDetails||"Could not translate. Try again.");
+        setTrResult("Could not translate. Check connection and try again.");
       }
-    }catch{setTrResult("Connection error")}
+    }catch{setTrResult("Connection error");}
     setTrLoading(false);
   }
 
@@ -665,7 +690,7 @@ export default function App(){
       const fl=LANGS.find(l=>l.code===trFrom),tl=LANGS.find(l=>l.code===trTo);
       return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"16px 16px 100px"}}><style>{css}</style>{toastEl}<div style={{maxWidth:480,margin:"0 auto"}}>
         <h2 style={{fontSize:22,fontWeight:800,marginBottom:4,display:"flex",alignItems:"center",gap:8}}><Globe size={22} style={{color:"var(--accent)"}}/>Translate</h2>
-        <p style={{fontSize:11,color:"var(--text2)",marginBottom:18}}>Powered by MyMemory · Free · No API key needed</p>
+        <p style={{fontSize:11,color:"var(--text2)",marginBottom:18}}>Powered by Google Translate · Free · No API key needed</p>
         <div style={{...C,marginBottom:16}}>
           <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:14}}>
             <div style={{flex:1}}><select style={I} value={trFrom} onChange={e=>setTrFrom(e.target.value)}>{LANGS.map(l=><option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}</select></div>
