@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Plane, Plus, ChevronLeft, MoreVertical, ArrowLeftRight, Globe, Receipt, TrendingUp, Coffee, UtensilsCrossed, ShoppingBag, Hotel, Bus, Wine, HeartPulse, Smartphone, Gift, Shield, Shirt, MapPin, Ticket, Camera, Music, Landmark, Palmtree, Eye, Pencil, Download, Share2, Settings, Trash2, UserPlus, Volume2, X, Clock, CreditCard, Wallet, Users, Copy, ExternalLink, ChevronRight, Compass, Utensils, Beer, Baby, ShoppingCart, TreePine, Waves, Gem, Map, Route, DollarSign, Navigation, Globe2, Star, Sun, FileText, Upload } from "lucide-react";
+import { Plane, Plus, ChevronLeft, MoreVertical, ArrowLeftRight, Globe, Receipt, TrendingUp, Coffee, UtensilsCrossed, ShoppingBag, Hotel, Bus, Wine, HeartPulse, Smartphone, Gift, Shield, Shirt, MapPin, Ticket, Camera, Music, Landmark, Palmtree, Eye, Pencil, Download, Share2, Settings, Trash2, UserPlus, Volume2, X, Clock, CreditCard, Wallet, Users, Copy, ExternalLink, ChevronRight, Compass, Utensils, Beer, Baby, ShoppingCart, TreePine, Waves, Gem, Map, Route, DollarSign, Navigation, Globe2, Star, Sun, FileText, Upload, Cloud, CalendarDays, Link2, Wind } from "lucide-react";
 
 /* ═══════ DATA ═══════ */
 const CATS=[
@@ -62,6 +62,8 @@ export default function App(){
   const[docCat,setDocCat]=useState("other");
   const fileInputRef=useRef(null);
   const[discoverDest,setDiscoverDest]=useState("");
+  const[weatherCity,setWeatherCity]=useState("");
+  const[eventsDest,setEventsDest]=useState("");
   const[activeTrip,setActiveTrip]=useState(null);
   const[screen,setScreen]=useState("home");
   const[tab,setTab]=useState("entries");
@@ -277,6 +279,12 @@ export default function App(){
         {id:"disc",label:"גלה יעדים",Icon:Globe2,grad:"linear-gradient(135deg,#E17055,#d35400)",fn:()=>setScreen("discoverScreen")},
         {id:"sync",label:"הגדרות סנכרון",Icon:Settings,grad:githubToken?"linear-gradient(135deg,#00E5A0,#00B894)":"linear-gradient(135deg,#636e72,#2d3436)",badge:githubToken?null:"!",fn:()=>setScreen("syncSettings")},
       ]},
+      {title:"אפליקציות שימושיות",items:[
+        {id:"finance",label:"כספים ועמלות",Icon:CreditCard,grad:"linear-gradient(135deg,#F9CA24,#f0932b)",fn:()=>setScreen("financeScreen")},
+        {id:"weather",label:"מזג אויר",Icon:Cloud,grad:"linear-gradient(135deg,#74b9ff,#0984e3)",fn:()=>setScreen("weatherScreen")},
+        {id:"events",label:"אירועים וחגים",Icon:CalendarDays,grad:"linear-gradient(135deg,#fd79a8,#e84393)",fn:()=>setScreen("eventsScreen")},
+        {id:"links",label:"קישורים שימושיים",Icon:Link2,grad:"linear-gradient(135deg,#a29bfe,#6c5ce7)",fn:()=>setScreen("linksScreen")},
+      ]},
     ];
     return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"28px 16px 48px"}}><style>{css}</style>{toastEl}
       <div style={{maxWidth:480,margin:"0 auto"}}>
@@ -477,6 +485,166 @@ export default function App(){
           <p style={{fontWeight:600,color:"var(--text)",marginBottom:6}}>הכנס יעד לחיפוש</p>
           <p style={{fontSize:12}}>יפתחו קישורים לכל המידע על היעד</p>
         </div>}
+      </div>
+    </div>);
+  }
+
+  /* FINANCE SCREEN */
+  if(screen==="financeScreen"){
+    const FLINKS=[
+      {name:"XE.com",url:"https://www.xe.com/currencyconverter/",Icon:ArrowLeftRight,color:"#F9CA24",desc:"שערי מטבע בזמן אמת"},
+      {name:"Wise",url:"https://wise.com/gb/currency-converter/",Icon:TrendingUp,color:"#37A94E",desc:"העברות בשיעור הטוב ביותר"},
+      {name:"בנק ישראל",url:"https://www.boi.org.il/en/markets-and-statistics/exchange-rates/",Icon:Landmark,color:"#0097e6",desc:"שערי מטבע רשמיים"},
+      {name:"Mastercard FX",url:"https://www.mastercard.us/en-us/personal/get-support/convert-currency.html",Icon:CreditCard,color:"#EB001B",desc:"מחשבון עמלות Mastercard"},
+      {name:"Visa FX",url:"https://usa.visa.com/support/consumer/travel-support/exchange-rate-calculator.html",Icon:CreditCard,color:"#1A1F71",desc:"מחשבון עמלות Visa"},
+      {name:"Bloomberg FX",url:"https://www.bloomberg.com/markets/currencies",Icon:DollarSign,color:"#FF6600",desc:"שוק המטבעות העולמי"},
+    ];
+    return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 48px"}}><style>{css}</style>{toastEl}
+      <div style={{maxWidth:480,margin:"0 auto"}}>
+        <button onClick={()=>setScreen("home")} style={BK}><ChevronLeft size={18}/>בית</button>
+        <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 4px",display:"flex",alignItems:"center",gap:8}}><CreditCard size={22} style={{color:"var(--accent)"}}/>כספים ועמלות</h2>
+        <p style={{fontSize:11,color:"var(--text2)",marginBottom:20}}>שערי מטבע · עמלות בנק · כלי כספים</p>
+        <div style={{...C,marginBottom:20,background:"rgba(249,202,36,.07)",borderColor:"rgba(249,202,36,.25)"}}>
+          <div style={{fontSize:13,fontWeight:700,color:"#F9CA24",marginBottom:12}}>💳 עמלות בנקים ישראלים</div>
+          {[["כרטיס אשראי רגיל","1.5–2% על עסקה"],["כרטיס פוקוס / מקס","~0.5–1%"],["כרטיס Wise","~0% עד מכסה חינמית"],['משיכת מזומן בחו"ל',"30–60 ₪ + ~1.5%"],["חיוב בש\"ח בחו\"ל (DCC)","הימנע — שער גרוע"]].map(([k,v],i)=>(
+            <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderTop:i?"1px solid var(--border)":"none",fontSize:12}}>
+              <span style={{color:"var(--text2)"}}>{k}</span><span style={{fontWeight:700,color:"var(--text)"}}>{v}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:12}}>כלי שערי מטבע</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          {FLINKS.map(({name,url,Icon,color,desc},i)=>(
+            <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+              style={{...C,padding:"16px 14px",textDecoration:"none",display:"flex",flexDirection:"column",gap:8,borderColor:`${color}22`}}>
+              <div style={{width:40,height:40,borderRadius:13,background:`${color}22`,display:"flex",alignItems:"center",justifyContent:"center"}}><Icon size={20} color={color}/></div>
+              <div style={{fontWeight:700,fontSize:13,color:"var(--text)"}}>{name}</div>
+              <div style={{fontSize:10,color:"var(--text2)",lineHeight:1.4}}>{desc}</div>
+              <div style={{display:"flex",alignItems:"center",gap:3,fontSize:10,color,fontWeight:600}}>פתח <ExternalLink size={10}/></div>
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>);
+  }
+
+  /* WEATHER SCREEN */
+  if(screen==="weatherScreen"){
+    const wq=encodeURIComponent(weatherCity||"Tel Aviv");
+    const WLINKS=[
+      {name:"Weather.com",url:`https://weather.com/weather/today/l/${wq}`,Icon:Sun,color:"#FFC107",desc:"תחזית יומית מפורטת"},
+      {name:"Windy",url:`https://www.windy.com/?${wq}`,Icon:Wind,color:"#55E6C1",desc:"מפת רוחות ומשקעים"},
+      {name:"AccuWeather",url:`https://www.accuweather.com/he/search-locations?query=${wq}`,Icon:Cloud,color:"#FC7318",desc:"תחזית מדויקת לשבוע"},
+      {name:"Time & Date",url:`https://www.timeanddate.com/weather/${wq}`,Icon:Clock,color:"#A29BFE",desc:"שעות שקיעה וזריחה"},
+      {name:"Meteoblue",url:`https://www.meteoblue.com/weather/forecast/week/${wq}`,Icon:Globe2,color:"#0097e6",desc:"תחזית ל-14 ימים"},
+      {name:"Google Weather",url:`https://www.google.com/search?q=weather+${wq}`,Icon:Globe,color:"#4285F4",desc:"תחזית מהירה בגוגל"},
+    ];
+    return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 40px"}}><style>{css}</style>{toastEl}
+      <div style={{maxWidth:480,margin:"0 auto"}}>
+        <button onClick={()=>setScreen("home")} style={BK}><ChevronLeft size={18}/>בית</button>
+        <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 16px",display:"flex",alignItems:"center",gap:8}}><Cloud size={22} style={{color:"var(--accent)"}}/>מזג אויר</h2>
+        <div style={{...C,marginBottom:20}}>
+          <label style={L}>עיר / יעד</label>
+          <input style={I} placeholder="לדוגמא: Athens, Bangkok, Paris..." value={weatherCity} onChange={e=>setWeatherCity(e.target.value)}/>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          {WLINKS.map(({name,url,Icon,color,desc},i)=>(
+            <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+              style={{...C,padding:"16px 14px",textDecoration:"none",display:"flex",flexDirection:"column",gap:8,borderColor:`${color}22`}}>
+              <div style={{width:40,height:40,borderRadius:13,background:`${color}22`,display:"flex",alignItems:"center",justifyContent:"center"}}><Icon size={20} color={color}/></div>
+              <div style={{fontWeight:700,fontSize:13,color:"var(--text)"}}>{name}</div>
+              <div style={{fontSize:10,color:"var(--text2)",lineHeight:1.4}}>{desc}</div>
+              <div style={{display:"flex",alignItems:"center",gap:3,fontSize:10,color,fontWeight:600}}>פתח <ExternalLink size={10}/></div>
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>);
+  }
+
+  /* EVENTS SCREEN */
+  if(screen==="eventsScreen"){
+    const eq=encodeURIComponent(eventsDest||"Israel");
+    const ELINKS=[
+      {name:"Time & Date",url:`https://www.timeanddate.com/holidays/${eq}`,Icon:CalendarDays,color:"#A29BFE",desc:"חגים לאומיים לפי מדינה"},
+      {name:"Public Holidays",url:`https://publicholidays.com/search/?q=${eq}`,Icon:Star,color:"#F9CA24",desc:"חגים ציבוריים בעולם"},
+      {name:"Eventbrite",url:`https://www.eventbrite.com/d/${eq}/events/`,Icon:Ticket,color:"#F05537",desc:"אירועים מקומיים"},
+      {name:"Songkick",url:`https://www.songkick.com/search?query=${eq}`,Icon:Music,color:"#F80046",desc:"הופעות וקונצרטים"},
+      {name:"Facebook Events",url:`https://www.facebook.com/events/search/?q=${eq}`,Icon:Users,color:"#1877F2",desc:"אירועים בפייסבוק"},
+      {name:"Timeout",url:`https://www.timeout.com/search?q=${eq}`,Icon:Clock,color:"#FF5A5F",desc:"מה לעשות בעיר"},
+    ];
+    return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 40px"}}><style>{css}</style>{toastEl}
+      <div style={{maxWidth:480,margin:"0 auto"}}>
+        <button onClick={()=>setScreen("home")} style={BK}><ChevronLeft size={18}/>בית</button>
+        <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 16px",display:"flex",alignItems:"center",gap:8}}><CalendarDays size={22} style={{color:"var(--accent)"}}/>אירועים וחגים</h2>
+        <div style={{...C,marginBottom:20}}>
+          <label style={L}>מדינה / עיר</label>
+          <input style={I} placeholder="לדוגמא: Israel, Thailand, Japan..." value={eventsDest} onChange={e=>setEventsDest(e.target.value)}/>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          {ELINKS.map(({name,url,Icon,color,desc},i)=>(
+            <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+              style={{...C,padding:"16px 14px",textDecoration:"none",display:"flex",flexDirection:"column",gap:8,borderColor:`${color}22`}}>
+              <div style={{width:40,height:40,borderRadius:13,background:`${color}22`,display:"flex",alignItems:"center",justifyContent:"center"}}><Icon size={20} color={color}/></div>
+              <div style={{fontWeight:700,fontSize:13,color:"var(--text)"}}>{name}</div>
+              <div style={{fontSize:10,color:"var(--text2)",lineHeight:1.4}}>{desc}</div>
+              <div style={{display:"flex",alignItems:"center",gap:3,fontSize:10,color,fontWeight:600}}>פתח <ExternalLink size={10}/></div>
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>);
+  }
+
+  /* LINKS SCREEN */
+  if(screen==="linksScreen"){
+    const LSECS=[
+      {title:"✈️ טיסות",items:[
+        {name:"Skyscanner",url:"https://www.skyscanner.net",Icon:Plane,color:"#0770E3",desc:"השוואת טיסות"},
+        {name:"Google Flights",url:"https://www.google.com/travel/flights",Icon:Plane,color:"#4285F4",desc:"חיפוש גוגל"},
+        {name:"Kiwi.com",url:"https://www.kiwi.com",Icon:Route,color:"#00B7FF",desc:"שילוב חברות"},
+        {name:"Wizzair",url:"https://wizzair.com",Icon:Plane,color:"#C6027B",desc:"טיסות זולות מ-TLV"},
+      ]},
+      {title:"🏨 לינה",items:[
+        {name:"Booking.com",url:"https://www.booking.com",Icon:Hotel,color:"#003580",desc:"מלונות ודירות"},
+        {name:"Airbnb",url:"https://www.airbnb.com",Icon:Palmtree,color:"#FF5A5F",desc:"דירות ייחודיות"},
+        {name:"Agoda",url:"https://www.agoda.com",Icon:Hotel,color:"#5D3AB0",desc:"מלונות באסיה"},
+        {name:"Hostelworld",url:"https://www.hostelworld.com",Icon:Users,color:"#F15D00",desc:"הוסטלים"},
+      ]},
+      {title:"🚂 תחבורה",items:[
+        {name:"Rome2rio",url:"https://www.rome2rio.com",Icon:Route,color:"#FC4440",desc:"כל אמצעי תחבורה"},
+        {name:"Trainline",url:"https://www.thetrainline.com",Icon:Navigation,color:"#00A693",desc:"רכבות אירופה"},
+        {name:"Rentalcars",url:"https://www.rentalcars.com",Icon:Map,color:"#FF7526",desc:"השכרת רכב"},
+        {name:"FlixBus",url:"https://www.flixbus.com",Icon:Bus,color:"#73D700",desc:"אוטובוסים אירופה"},
+      ]},
+      {title:"🛡️ שונות",items:[
+        {name:"World Nomads",url:"https://www.worldnomads.com",Icon:Shield,color:"#00A878",desc:"ביטוח נסיעות"},
+        {name:"Numbeo",url:"https://www.numbeo.com/cost-of-living/",Icon:DollarSign,color:"#55E6C1",desc:"עלות מחיה"},
+        {name:"VisaHQ",url:"https://www.visahq.com",Icon:FileText,color:"#C8001B",desc:"דרישות ויזה"},
+        {name:"TripAdvisor",url:"https://www.tripadvisor.com",Icon:Star,color:"#00A680",desc:"ביקורות ואטרקציות"},
+      ]},
+    ];
+    return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 48px"}}><style>{css}</style>{toastEl}
+      <div style={{maxWidth:480,margin:"0 auto"}}>
+        <button onClick={()=>setScreen("home")} style={BK}><ChevronLeft size={18}/>בית</button>
+        <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 4px",display:"flex",alignItems:"center",gap:8}}><Link2 size={22} style={{color:"var(--accent)"}}/>קישורים שימושיים</h2>
+        <p style={{fontSize:11,color:"var(--text2)",marginBottom:24}}>כל הכלים החיוניים לטיול · ללא הרשמה</p>
+        {LSECS.map((sec,si)=>(
+          <div key={si} style={{marginBottom:28}}>
+            <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:12}}>{sec.title}</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              {sec.items.map(({name,url,Icon,color,desc},i)=>(
+                <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                  style={{...C,padding:"16px 14px",textDecoration:"none",display:"flex",flexDirection:"column",gap:8,borderColor:`${color}22`}}>
+                  <div style={{width:40,height:40,borderRadius:13,background:`${color}22`,display:"flex",alignItems:"center",justifyContent:"center"}}><Icon size={20} color={color}/></div>
+                  <div style={{fontWeight:700,fontSize:13,color:"var(--text)"}}>{name}</div>
+                  <div style={{fontSize:10,color:"var(--text2)",lineHeight:1.4}}>{desc}</div>
+                  <div style={{display:"flex",alignItems:"center",gap:3,fontSize:10,color,fontWeight:600}}>פתח <ExternalLink size={10}/></div>
+                </a>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>);
   }
