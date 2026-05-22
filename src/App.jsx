@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Plane, Plus, ChevronLeft, MoreVertical, ArrowLeftRight, Globe, Receipt, TrendingUp, Coffee, UtensilsCrossed, ShoppingBag, Hotel, Bus, Wine, HeartPulse, Smartphone, Gift, Shield, Shirt, MapPin, Ticket, Camera, Music, Landmark, Palmtree, Eye, Pencil, Download, Share2, Settings, Trash2, UserPlus, Volume2, X, Clock, CreditCard, Wallet, Users, Copy, ExternalLink, ChevronRight, Compass, Utensils, Beer, Baby, ShoppingCart, TreePine, Waves, Gem, Map, Route, DollarSign, Navigation, Globe2, Star, Sun } from "lucide-react";
+import { Plane, Plus, ChevronLeft, MoreVertical, ArrowLeftRight, Globe, Receipt, TrendingUp, Coffee, UtensilsCrossed, ShoppingBag, Hotel, Bus, Wine, HeartPulse, Smartphone, Gift, Shield, Shirt, MapPin, Ticket, Camera, Music, Landmark, Palmtree, Eye, Pencil, Download, Share2, Settings, Trash2, UserPlus, Volume2, X, Clock, CreditCard, Wallet, Users, Copy, ExternalLink, ChevronRight, Compass, Utensils, Beer, Baby, ShoppingCart, TreePine, Waves, Gem, Map, Route, DollarSign, Navigation, Globe2, Star, Sun, FileText, Upload } from "lucide-react";
 
 /* ═══════ DATA ═══════ */
 const CATS=[
@@ -59,6 +59,8 @@ export default function App(){
   const saveTimer=useRef(null);
   const[tokenDraft,setTokenDraft]=useState(()=>localStorage.getItem('tt_gh_token')||'');
   const[gistDraft,setGistDraft]=useState(()=>localStorage.getItem('tt_gist_id')||'');
+  const[docCat,setDocCat]=useState("other");
+  const fileInputRef=useRef(null);
   const[activeTrip,setActiveTrip]=useState(null);
   const[screen,setScreen]=useState("home");
   const[tab,setTab]=useState("entries");
@@ -460,6 +462,84 @@ export default function App(){
       </div></div>
     </div><TabBar/></div>);}
 
+    if(sub==="docs"){
+      const DOC_CATS=[
+        {id:"flight",name:"Flight",Icon:Plane,color:"#686DE0"},
+        {id:"insurance",name:"Insurance",Icon:Shield,color:"#74B9FF"},
+        {id:"visa",name:"Visa",Icon:MapPin,color:"#00B894"},
+        {id:"hotel",name:"Hotel",Icon:Hotel,color:"#6C5CE7"},
+        {id:"transport",name:"Transport",Icon:Bus,color:"#22A6B3"},
+        {id:"other",name:"Other",Icon:FileText,color:"#B2BEC3"},
+      ];
+      const docs=trip.docs||[];
+      function handleFile(e){
+        const f=e.target.files[0];if(!f)return;
+        if(f.size>5*1024*1024){show("File too large (max 5MB)");e.target.value='';return;}
+        const r=new FileReader();
+        r.onload=ev=>{
+          setTrips(p=>p.map(t=>t.id===activeTrip?{...t,docs:[...(t.docs||[]),{id:gid(),name:f.name,mimeType:f.type,size:f.size,data:ev.target.result,cat:docCat,addedAt:new Date().toISOString().slice(0,10)}]}:t));
+          show("Document added!");
+          e.target.value='';
+        };
+        r.readAsDataURL(f);
+      }
+      function viewDoc(doc){const a=document.createElement('a');a.href=doc.data;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();document.body.removeChild(a);}
+      function dlDoc(doc){const a=document.createElement('a');a.href=doc.data;a.download=doc.name;document.body.appendChild(a);a.click();document.body.removeChild(a);}
+      function delDoc(id){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,docs:(t.docs||[]).filter(d=>d.id!==id)}:t));show("Deleted");}
+      function fSz(b){if(!b)return'';if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(0)+'KB';return(b/1048576).toFixed(1)+'MB'}
+      return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 100px"}}><style>{css}</style>{toastEl}
+        <div style={{maxWidth:480,margin:"0 auto"}}>
+          <button onClick={()=>setSub(null)} style={BK}><ChevronLeft size={18}/>Back</button>
+          <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 24px",display:"flex",alignItems:"center",gap:8}}>
+            <FileText size={20} style={{color:"var(--accent)"}}/>Documents{docs.length>0&&<span style={{fontSize:13,color:"var(--text2)",fontWeight:500,marginLeft:4}}>· {docs.length}</span>}
+          </h2>
+          <div style={{...C,marginBottom:16}}>
+            <label style={L}>Category</label>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:16}}>
+              {DOC_CATS.map(c=>{const Icon=c.Icon;return(
+                <button key={c.id} onClick={()=>setDocCat(c.id)} style={{padding:"8px 12px",borderRadius:12,border:docCat===c.id?`2px solid ${c.color}`:"1px solid var(--border)",background:docCat===c.id?c.color+"18":"var(--card)",color:"var(--text)",cursor:"pointer",fontSize:11,fontFamily:"Inter",fontWeight:600,display:"flex",alignItems:"center",gap:5,transition:"all .15s"}}>
+                  <Icon size={14} color={c.color}/>{c.name}</button>);})}
+            </div>
+            <input ref={fileInputRef} type="file" onChange={handleFile} style={{display:"none"}}/>
+            <button style={{...B1,display:"flex",alignItems:"center",justifyContent:"center",gap:8}} onClick={()=>fileInputRef.current?.click()}>
+              <Upload size={18}/>Choose File to Upload
+            </button>
+            <p style={{fontSize:11,color:"var(--text2)",textAlign:"center",marginTop:8}}>PDF, images, any format · Max 5MB per file</p>
+          </div>
+          {docs.length===0?<div style={{textAlign:"center",padding:"50px 20px",color:"var(--text2)"}}>
+            <FileText size={52} strokeWidth={1} style={{marginBottom:14,opacity:.25}}/>
+            <p style={{fontWeight:700,fontSize:15,color:"var(--text)",marginBottom:6}}>No documents yet</p>
+            <p style={{fontSize:12}}>Upload flight tickets, insurance, visa & more</p>
+          </div>:docs.map(doc=>{
+            const cat=DOC_CATS.find(c=>c.id===doc.cat)||DOC_CATS[DOC_CATS.length-1];
+            const isImg=doc.mimeType?.startsWith('image/');
+            return(<div key={doc.id} style={{...C,marginBottom:10,display:"flex",alignItems:"center",gap:12,padding:"14px 16px"}}>
+              {isImg?(
+                <img src={doc.data} alt={doc.name} style={{width:48,height:48,borderRadius:12,objectFit:"cover",flexShrink:0}}/>
+              ):(
+                <div style={{width:48,height:48,borderRadius:14,background:`${cat.color}20`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                  <FileText size={22} color={cat.color}/>
+                </div>
+              )}
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:700,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{doc.name}</div>
+                <div style={{display:"flex",alignItems:"center",gap:6,marginTop:4,flexWrap:"wrap"}}>
+                  <span style={{fontSize:10,background:`${cat.color}20`,color:cat.color,padding:"2px 8px",borderRadius:6,fontWeight:700}}>{cat.name}</span>
+                  <span style={{fontSize:11,color:"var(--text2)"}}>{fSz(doc.size)}</span>
+                  {doc.addedAt&&<span style={{fontSize:11,color:"var(--text2)"}}>· {doc.addedAt}</span>}
+                </div>
+              </div>
+              <div style={{display:"flex",gap:6,flexShrink:0}}>
+                <button onClick={()=>viewDoc(doc)} style={{width:34,height:34,borderRadius:11,border:"1px solid var(--border)",background:"var(--card)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}} title="Open"><Eye size={14} color="var(--accent)"/></button>
+                <button onClick={()=>dlDoc(doc)} style={{width:34,height:34,borderRadius:11,border:"1px solid var(--border)",background:"var(--card)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}} title="Download"><Download size={14} color="var(--text2)"/></button>
+                <button onClick={()=>delDoc(doc.id)} style={{width:34,height:34,borderRadius:11,border:"1px solid rgba(255,71,87,.2)",background:"rgba(255,71,87,.06)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}} title="Delete"><Trash2 size={14} color="var(--red)"/></button>
+              </div>
+            </div>);
+          })}
+        </div>
+      <TabBar/></div>);
+    }
+
     if(sub==="settings"){return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 100px"}}><style>{css}</style>{toastEl}<div style={{maxWidth:480,margin:"0 auto"}}>
       <button onClick={()=>setSub(null)} style={BK}><ChevronLeft size={18}/>Back</button>
       <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 24px",display:"flex",alignItems:"center",gap:8}}><Settings size={20}/>Settings</h2>
@@ -481,7 +561,7 @@ export default function App(){
           <div style={{position:"relative"}}>
             <button onClick={()=>setMenuOpen(!menuOpen)} style={{background:"none",border:"none",cursor:"pointer",padding:8}}><MoreVertical size={20} color="var(--text2)"/></button>
             {menuOpen&&<><div onClick={()=>setMenuOpen(false)} style={{position:"fixed",top:0,left:0,right:0,bottom:0,zIndex:60}}/><div style={{position:"absolute",top:"100%",right:0,width:230,background:"rgba(20,24,32,0.98)",border:"1px solid var(--border)",borderRadius:18,boxShadow:"0 12px 40px rgba(0,0,0,.6)",zIndex:70,overflow:"hidden",backdropFilter:"blur(30px)",animation:"fadeUp .15s"}}>
-              {[{Icon:UserPlus,l:"Add Friend",a:()=>{setSub("addFriend");setMenuOpen(false)}},{Icon:Pencil,l:"Edit Trip",a:()=>{setEditTripForm({name:trip.name,country:trip.country,budget:trip.budget,currency:trip.currency,startDate:trip.startDate,endDate:trip.endDate});setSub("editTrip");setMenuOpen(false)}},{Icon:Download,l:"Export CSV",a:()=>{setSub("exportView");setMenuOpen(false)}},{Icon:Share2,l:"Share",a:()=>{setSub("shareView");setMenuOpen(false)}},{Icon:Settings,l:"Settings",a:()=>{setSub("settings");setMenuOpen(false)}}].map(({Icon,l,a},i)=>
+              {[{Icon:UserPlus,l:"Add Friend",a:()=>{setSub("addFriend");setMenuOpen(false)}},{Icon:Pencil,l:"Edit Trip",a:()=>{setEditTripForm({name:trip.name,country:trip.country,budget:trip.budget,currency:trip.currency,startDate:trip.startDate,endDate:trip.endDate});setSub("editTrip");setMenuOpen(false)}},{Icon:FileText,l:"Documents",a:()=>{setSub("docs");setMenuOpen(false)}},{Icon:Download,l:"Export CSV",a:()=>{setSub("exportView");setMenuOpen(false)}},{Icon:Share2,l:"Share",a:()=>{setSub("shareView");setMenuOpen(false)}},{Icon:Settings,l:"Settings",a:()=>{setSub("settings");setMenuOpen(false)}}].map(({Icon,l,a},i)=>
                 <button key={i} onClick={a} style={{width:"100%",padding:"14px 18px",background:"none",border:"none",borderTop:i?"1px solid var(--border)":"none",color:"var(--text)",cursor:"pointer",fontFamily:"Inter",fontSize:14,fontWeight:500,textAlign:"left",display:"flex",alignItems:"center",gap:12}}><Icon size={18} color="var(--text2)"/>{l}</button>)}
             </div></>}</div></div>
 
