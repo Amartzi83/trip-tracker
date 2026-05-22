@@ -289,7 +289,7 @@ export default function App(){
               <div style={{background:"var(--surface)",padding:"16px 20px 18px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
                   <div style={{display:"flex",gap:14,fontSize:12,color:"var(--text2)"}}>
-                    <span style={{display:"flex",alignItems:"center",gap:4}}><Clock size={13}/>{t.startDate?`${t.startDate.slice(5)} → ${(t.endDate||"?").slice(5)}`:"No dates"}</span>
+                    <span style={{display:"flex",alignItems:"center",gap:4}}><Clock size={13}/>{t.startDate?`${t.startDate.slice(5)} → ${(t.endDate||"?").slice(5)}`:"No dates"}{t.startDate&&t.endDate&&<span style={{marginLeft:4,background:"rgba(255,255,255,0.08)",borderRadius:6,padding:"1px 6px",fontWeight:700,color:"var(--accent)",fontSize:11}}>{dBtw(t.startDate,t.endDate)}d</span>}</span>
                     <span style={{display:"flex",alignItems:"center",gap:4}}><Receipt size={13}/>{t.expenses.length}</span>
                   </div>
                   <div style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:"var(--text2)"}}><Users size={12}/>{userName}</div>
