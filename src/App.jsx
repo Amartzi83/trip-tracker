@@ -1,4 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { db } from './firebase';
+import { ref, get, set } from 'firebase/database';
 import { Plane, Plus, ChevronLeft, MoreVertical, ArrowLeftRight, Globe, Receipt, TrendingUp, Coffee, UtensilsCrossed, ShoppingBag, Hotel, Bus, Wine, HeartPulse, Smartphone, Gift, Shield, Shirt, MapPin, Ticket, Camera, Music, Landmark, Palmtree, Eye, Pencil, Download, Share2, Settings, Trash2, UserPlus, Volume2, X, Clock, CreditCard, Wallet, Users, Copy, ExternalLink, ChevronRight, Compass, Utensils, Beer, Baby, ShoppingCart, TreePine, Waves, Gem, Map, Route, DollarSign, Navigation, Globe2, Star, Sun } from "lucide-react";
 
 /* ═══════ DATA ═══════ */
@@ -51,7 +53,8 @@ function Pie({data,size=170}){
 
 /* ═══════ APP ═══════ */
 export default function App(){
-  const[trips,setTrips]=useState(()=>{try{const s=localStorage.getItem('tt_trips');if(s){const p=JSON.parse(s);if(p.length)return p;}}catch{}return[{id:"d1",name:"Athens & Islands",country:"Greece",budget:2000,currency:"USD",startDate:"2026-04-01",endDate:"2026-04-14",shared:[],expenses:[{id:"e1",amount:320,category:"flights",currency:"USD",note:"Round-trip",date:""},{id:"e2",amount:55,category:"insurance",currency:"USD",note:"Travel insurance",date:""},{id:"e3",amount:45,category:"food",currency:"EUR",note:"Dinner in Athens",date:"2026-04-02"},{id:"e4",amount:120,category:"accommodation",currency:"EUR",note:"Airbnb",date:"2026-04-02"},{id:"e5",amount:25,category:"tours",currency:"EUR",note:"Acropolis",date:"2026-04-03"},{id:"e6",amount:4.5,category:"coffee",currency:"EUR",note:"Cappuccino",date:"2026-04-03"},{id:"e7",amount:35,category:"groceries",currency:"EUR",note:"Super market",date:"2026-04-04"},{id:"e8",amount:60,category:"gifts",currency:"EUR",note:"Souvenirs",date:"2026-04-04"}]}];});
+  const[trips,setTrips]=useState(()=>{try{const s=localStorage.getItem('tt_trips');if(s!==null){const p=JSON.parse(s);if(Array.isArray(p))return p;}}catch{}return[{id:"d1",name:"Athens & Islands",country:"Greece",budget:2000,currency:"USD",startDate:"2026-04-01",endDate:"2026-04-14",shared:[],expenses:[{id:"e1",amount:320,category:"flights",currency:"USD",note:"Round-trip",date:""},{id:"e2",amount:55,category:"insurance",currency:"USD",note:"Travel insurance",date:""},{id:"e3",amount:45,category:"food",currency:"EUR",note:"Dinner in Athens",date:"2026-04-02"},{id:"e4",amount:120,category:"accommodation",currency:"EUR",note:"Airbnb",date:"2026-04-02"},{id:"e5",amount:25,category:"tours",currency:"EUR",note:"Acropolis",date:"2026-04-03"},{id:"e6",amount:4.5,category:"coffee",currency:"EUR",note:"Cappuccino",date:"2026-04-03"},{id:"e7",amount:35,category:"groceries",currency:"EUR",note:"Super market",date:"2026-04-04"},{id:"e8",amount:60,category:"gifts",currency:"EUR",note:"Souvenirs",date:"2026-04-04"}]}];});
+  const fbLoaded=useRef(false);
   const[activeTrip,setActiveTrip]=useState(null);
   const[screen,setScreen]=useState("home");
   const[tab,setTab]=useState("entries");
@@ -79,8 +82,31 @@ export default function App(){
   const[shareRole,setShareRole]=useState("viewer");
 
   const show=m=>{setToast(m);setTimeout(()=>setToast(null),2200)};
-  useEffect(()=>{try{localStorage.setItem('tt_trips',JSON.stringify(trips))}catch{}},[trips]);
-  useEffect(()=>{try{localStorage.setItem('tt_userName',userName)}catch{}},[userName]);
+
+  // ── Firebase: load once on mount ──
+  useEffect(()=>{
+    get(ref(db,'trip-tracker')).then(snap=>{
+      fbLoaded.current=true;
+      if(snap.exists()){
+        const d=snap.val();
+        if(Array.isArray(d.trips))setTrips(d.trips);
+        if(d.userName)setUserName(d.userName);
+      }
+    }).catch(()=>{fbLoaded.current=true});
+  },[]);
+
+  // ── Firebase + localStorage: save on every change ──
+  useEffect(()=>{
+    if(!fbLoaded.current)return;
+    set(ref(db,'trip-tracker/trips'),trips).catch(()=>{});
+    try{localStorage.setItem('tt_trips',JSON.stringify(trips))}catch{}
+  },[trips]);
+  useEffect(()=>{
+    if(!fbLoaded.current)return;
+    set(ref(db,'trip-tracker/userName'),userName).catch(()=>{});
+    try{localStorage.setItem('tt_userName',userName)}catch{}
+  },[userName]);
+
   useEffect(()=>{(async()=>{try{const r=await fetch("https://open.er-api.com/v6/latest/USD");const d=await r.json();if(d?.rates){setRates(d.rates);setRatesTime(new Date().toLocaleTimeString())}}catch{}})()},[]);
   useEffect(()=>{if(window.speechSynthesis){window.speechSynthesis.getVoices()}},[]);
 
