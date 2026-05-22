@@ -1,6 +1,4 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { db } from './firebase';
-import { ref, get, set } from 'firebase/database';
 import { Plane, Plus, ChevronLeft, MoreVertical, ArrowLeftRight, Globe, Receipt, TrendingUp, Coffee, UtensilsCrossed, ShoppingBag, Hotel, Bus, Wine, HeartPulse, Smartphone, Gift, Shield, Shirt, MapPin, Ticket, Camera, Music, Landmark, Palmtree, Eye, Pencil, Download, Share2, Settings, Trash2, UserPlus, Volume2, X, Clock, CreditCard, Wallet, Users, Copy, ExternalLink, ChevronRight, Compass, Utensils, Beer, Baby, ShoppingCart, TreePine, Waves, Gem, Map, Route, DollarSign, Navigation, Globe2, Star, Sun } from "lucide-react";
 
 /* ═══════ DATA ═══════ */
@@ -55,6 +53,12 @@ function Pie({data,size=170}){
 export default function App(){
   const[trips,setTrips]=useState(()=>{try{const s=localStorage.getItem('tt_trips');if(s!==null){const p=JSON.parse(s);if(Array.isArray(p))return p;}}catch{}return[{id:"d1",name:"Athens & Islands",country:"Greece",budget:2000,currency:"USD",startDate:"2026-04-01",endDate:"2026-04-14",shared:[],expenses:[{id:"e1",amount:320,category:"flights",currency:"USD",note:"Round-trip",date:""},{id:"e2",amount:55,category:"insurance",currency:"USD",note:"Travel insurance",date:""},{id:"e3",amount:45,category:"food",currency:"EUR",note:"Dinner in Athens",date:"2026-04-02"},{id:"e4",amount:120,category:"accommodation",currency:"EUR",note:"Airbnb",date:"2026-04-02"},{id:"e5",amount:25,category:"tours",currency:"EUR",note:"Acropolis",date:"2026-04-03"},{id:"e6",amount:4.5,category:"coffee",currency:"EUR",note:"Cappuccino",date:"2026-04-03"},{id:"e7",amount:35,category:"groceries",currency:"EUR",note:"Super market",date:"2026-04-04"},{id:"e8",amount:60,category:"gifts",currency:"EUR",note:"Souvenirs",date:"2026-04-04"}]}];});
   const fbLoaded=useRef(false);
+  const[githubToken,setGithubToken]=useState(()=>localStorage.getItem('tt_gh_token')||'');
+  const[gistId,setGistId]=useState(()=>localStorage.getItem('tt_gist_id')||'');
+  const[syncStatus,setSyncStatus]=useState('');
+  const saveTimer=useRef(null);
+  const[tokenDraft,setTokenDraft]=useState(()=>localStorage.getItem('tt_gh_token')||'');
+  const[gistDraft,setGistDraft]=useState(()=>localStorage.getItem('tt_gist_id')||'');
   const[activeTrip,setActiveTrip]=useState(null);
   const[screen,setScreen]=useState("home");
   const[tab,setTab]=useState("entries");
@@ -83,29 +87,58 @@ export default function App(){
 
   const show=m=>{setToast(m);setTimeout(()=>setToast(null),2200)};
 
-  // ── Firebase: load once on mount ──
-  useEffect(()=>{
-    get(ref(db,'trip-tracker')).then(snap=>{
-      fbLoaded.current=true;
-      if(snap.exists()){
-        const d=snap.val();
-        if(Array.isArray(d.trips))setTrips(d.trips);
-        if(d.userName)setUserName(d.userName);
+  // ── GitHub Gist helpers ──
+  async function loadFromGist(token,id){
+    if(!token||!id)return;
+    try{
+      const r=await fetch(`https://api.github.com/gists/${id}`,{headers:{'Authorization':`Bearer ${token}`,'Accept':'application/vnd.github.v3+json'}});
+      if(!r.ok)return;
+      const d=await r.json();
+      const content=d.files?.['trip-tracker-data.json']?.content;
+      if(content){const data=JSON.parse(content);if(Array.isArray(data.trips))setTrips(data.trips);if(data.userName)setUserName(data.userName);}
+    }catch{}
+  }
+  async function saveToGist(tripsData,userNameData,token,id){
+    if(!token)return;
+    setSyncStatus('saving');
+    const content=JSON.stringify({trips:tripsData,userName:userNameData},null,2);
+    const body={description:'Trip Tracker Data',public:false,files:{'trip-tracker-data.json':{content}}};
+    try{
+      if(!id){
+        const r=await fetch('https://api.github.com/gists',{method:'POST',headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(body)});
+        if(r.ok){const d=await r.json();setGistId(d.id);localStorage.setItem('tt_gist_id',d.id);setSyncStatus('saved');}else setSyncStatus('error');
+      }else{
+        const r=await fetch(`https://api.github.com/gists/${id}`,{method:'PATCH',headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(body)});
+        if(r.ok)setSyncStatus('saved');else setSyncStatus('error');
       }
-    }).catch(()=>{fbLoaded.current=true});
+    }catch{setSyncStatus('error');}
+    setTimeout(()=>setSyncStatus(''),3000);
+  }
+
+  // ── Load from Gist on mount (or fall back to localStorage) ──
+  useEffect(()=>{
+    (async()=>{
+      await loadFromGist(githubToken,gistId);
+      fbLoaded.current=true;
+    })();
   },[]);
 
-  // ── Firebase + localStorage: save on every change ──
+  // ── Save to localStorage + Gist (debounced 2s) on every change ──
   useEffect(()=>{
     if(!fbLoaded.current)return;
-    set(ref(db,'trip-tracker/trips'),trips).catch(()=>{});
     try{localStorage.setItem('tt_trips',JSON.stringify(trips))}catch{}
+    if(!githubToken)return;
+    if(saveTimer.current)clearTimeout(saveTimer.current);
+    saveTimer.current=setTimeout(()=>saveToGist(trips,userName,githubToken,gistId),2000);
   },[trips]);
   useEffect(()=>{
     if(!fbLoaded.current)return;
-    set(ref(db,'trip-tracker/userName'),userName).catch(()=>{});
     try{localStorage.setItem('tt_userName',userName)}catch{}
+    if(!githubToken)return;
+    if(saveTimer.current)clearTimeout(saveTimer.current);
+    saveTimer.current=setTimeout(()=>saveToGist(trips,userName,githubToken,gistId),2000);
   },[userName]);
+  useEffect(()=>{if(screen==="syncSettings"){setTokenDraft(githubToken);setGistDraft(gistId);}},[screen]);
 
   useEffect(()=>{(async()=>{try{const r=await fetch("https://open.er-api.com/v6/latest/USD");const d=await r.json();if(d?.rates){setRates(d.rates);setRatesTime(new Date().toLocaleTimeString())}}catch{}})()},[]);
   useEffect(()=>{if(window.speechSynthesis){window.speechSynthesis.getVoices()}},[]);
@@ -213,7 +246,13 @@ export default function App(){
             {editingName?<input autoFocus style={{...I,fontSize:26,fontWeight:900,padding:"4px 8px",width:220,background:"transparent",border:"1px solid var(--accent)"}} value={userName} onChange={e=>setUserName(e.target.value)} onBlur={()=>setEditingName(false)} onKeyDown={e=>{if(e.key==="Enter")setEditingName(false)}}/>
             :<h1 onClick={()=>setEditingName(true)} style={{fontSize:28,fontWeight:900,letterSpacing:"-0.7px",cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>{userName}<Plane size={24} style={{color:"var(--accent)",transform:"rotate(-20deg)"}}/></h1>}
           </div>
-          <div style={{width:44,height:44,borderRadius:16,background:"linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))",display:"flex",alignItems:"center",justifyContent:"center",border:"1px solid var(--border)",backdropFilter:"blur(10px)"}}><Wallet size={18} color="var(--text2)"/></div>
+          <button onClick={()=>setScreen("syncSettings")} style={{width:44,height:44,borderRadius:16,background:"linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))",display:"flex",alignItems:"center",justifyContent:"center",border:`1px solid ${githubToken?"rgba(0,229,160,.3)":"var(--border)"}`,backdropFilter:"blur(10px)",cursor:"pointer",position:"relative"}}>
+            <Settings size={18} color={githubToken?"var(--accent)":"var(--text2)"}/>
+            {syncStatus==='saving'&&<div style={{position:"absolute",top:8,right:8,width:7,height:7,borderRadius:"50%",background:"#F9CA24",animation:"pulse 1s infinite"}}/>}
+            {syncStatus==='saved'&&<div style={{position:"absolute",top:8,right:8,width:7,height:7,borderRadius:"50%",background:"var(--accent)"}}/>}
+            {syncStatus==='error'&&<div style={{position:"absolute",top:8,right:8,width:7,height:7,borderRadius:"50%",background:"var(--red)"}}/>}
+            {!syncStatus&&githubToken&&<div style={{position:"absolute",top:8,right:8,width:7,height:7,borderRadius:"50%",background:"var(--accent)",opacity:.6}}/>}
+          </button>
         </div>
 
         <button onClick={()=>setScreen("addTrip")} style={{width:"100%",padding:"20px 24px",borderRadius:22,border:"none",background:"linear-gradient(135deg,rgba(255,71,87,0.12),rgba(255,71,87,0.04))",color:"var(--red)",fontSize:16,fontWeight:800,cursor:"pointer",fontFamily:"Inter",marginBottom:28,display:"flex",alignItems:"center",justifyContent:"center",gap:14,letterSpacing:"-0.3px",boxShadow:"inset 0 0 0 1.5px rgba(255,71,87,0.25)",transition:"all .15s"}}>
@@ -267,6 +306,58 @@ export default function App(){
             </div>
           );
         })}
+      </div>
+    </div>);
+  }
+
+  /* SYNC SETTINGS */
+  if(screen==="syncSettings"){
+    const isConn=!!githubToken;
+    async function handleSave(){
+      const t=tokenDraft.trim(),g=gistDraft.trim();
+      setGithubToken(t);setGistId(g);
+      localStorage.setItem('tt_gh_token',t);localStorage.setItem('tt_gist_id',g);
+      if(!t){show("Disconnected");setScreen("home");return;}
+      if(g){await loadFromGist(t,g);show("✓ Loaded from cloud!");}
+      else{await saveToGist(trips,userName,t,'');show("✓ Connected!");}
+      setScreen("home");
+    }
+    function handleDisconn(){
+      setGithubToken('');setGistId('');setTokenDraft('');setGistDraft('');
+      localStorage.removeItem('tt_gh_token');localStorage.removeItem('tt_gist_id');
+      show("Disconnected");setScreen("home");
+    }
+    return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 40px"}}><style>{css}</style>{toastEl}
+      <div style={{maxWidth:480,margin:"0 auto"}}>
+        <button onClick={()=>setScreen("home")} style={BK}><ChevronLeft size={18}/>Back</button>
+        <h2 style={{fontSize:26,fontWeight:800,margin:"20px 0 8px",letterSpacing:"-0.5px",display:"flex",alignItems:"center",gap:10}}><Settings size={24} style={{color:"var(--accent)"}}/>Cloud Sync</h2>
+        <p style={{fontSize:13,color:"var(--text2)",marginBottom:28}}>Save your data to a private GitHub Gist — syncs across all your devices</p>
+        <div style={{...C,marginBottom:16}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",borderRadius:14,background:isConn?"rgba(0,229,160,.08)":"rgba(255,255,255,.03)",border:`1px solid ${isConn?"rgba(0,229,160,.3)":"var(--border)"}`,marginBottom:20}}>
+            <div style={{width:9,height:9,borderRadius:"50%",background:isConn?"var(--accent)":"var(--text2)",flexShrink:0,boxShadow:isConn?"0 0 8px var(--accent)":"none"}}/>
+            <span style={{fontSize:13,fontWeight:600,color:isConn?"var(--accent)":"var(--text2)"}}>{isConn?"Connected — GitHub Gist active":"Not connected"}</span>
+          </div>
+          <label style={L}>GitHub Personal Access Token</label>
+          <input style={{...I,fontFamily:"monospace",fontSize:13,marginBottom:6}} type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" value={tokenDraft} onChange={e=>setTokenDraft(e.target.value)}/>
+          <p style={{fontSize:11,color:"var(--text2)",marginBottom:16}}>Requires only the <strong style={{color:"var(--accent)"}}>gist</strong> scope</p>
+          <label style={L}>Gist ID</label>
+          <div style={{display:"flex",gap:8,marginBottom:6}}>
+            <input style={{...I,fontFamily:"monospace",fontSize:12,flex:1}} placeholder="Auto-created on first save" value={gistDraft} onChange={e=>setGistDraft(e.target.value)}/>
+            {gistDraft&&<button onClick={()=>copyTxt(gistDraft)} style={{width:44,borderRadius:14,border:"1px solid var(--border)",background:"var(--card)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Copy size={15} color="var(--text2)"/></button>}
+          </div>
+          <p style={{fontSize:11,color:"var(--text2)",marginBottom:20}}>Auto-filled after first sync · leave empty to create new</p>
+          <button style={B1} onClick={handleSave}>Save &amp; Sync</button>
+          {isConn&&<button style={{...B2,marginTop:10,color:"var(--red)",display:"flex",alignItems:"center",justifyContent:"center",gap:6}} onClick={handleDisconn}><X size={15}/>Disconnect</button>}
+        </div>
+        <div style={C}>
+          <div style={{...L,marginBottom:14}}>How to get a GitHub token</div>
+          {[["1","Open github.com/settings/tokens"],["2","Click 'Generate new token (classic)'"],["3","Name it: Trip Tracker"],["4","Check the 'gist' scope only"],["5","Click Generate — copy the token"],["6","Paste above → Save & Sync"]].map(([n,t])=>(
+            <div key={n} style={{display:"flex",gap:12,alignItems:"flex-start",marginBottom:10}}>
+              <div style={{width:22,height:22,borderRadius:7,background:"rgba(0,229,160,.15)",color:"var(--accent)",fontWeight:800,fontSize:11,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{n}</div>
+              <span style={{fontSize:12,color:"var(--text2)",lineHeight:1.6,paddingTop:2}}>{t}</span>
+            </div>))}
+          <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer" style={{...B2,display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginTop:10,textDecoration:"none",boxSizing:"border-box"}}><ExternalLink size={15}/>Open GitHub Tokens</a>
+        </div>
       </div>
     </div>);
   }
