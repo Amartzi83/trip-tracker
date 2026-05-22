@@ -51,13 +51,13 @@ function Pie({data,size=170}){
 
 /* ═══════ APP ═══════ */
 export default function App(){
-  const[trips,setTrips]=useState([]);
+  const[trips,setTrips]=useState(()=>{try{const s=localStorage.getItem('tt_trips');if(s){const p=JSON.parse(s);if(p.length)return p;}}catch{}return[{id:"d1",name:"Athens & Islands",country:"Greece",budget:2000,currency:"USD",startDate:"2026-04-01",endDate:"2026-04-14",shared:[],expenses:[{id:"e1",amount:320,category:"flights",currency:"USD",note:"Round-trip",date:""},{id:"e2",amount:55,category:"insurance",currency:"USD",note:"Travel insurance",date:""},{id:"e3",amount:45,category:"food",currency:"EUR",note:"Dinner in Athens",date:"2026-04-02"},{id:"e4",amount:120,category:"accommodation",currency:"EUR",note:"Airbnb",date:"2026-04-02"},{id:"e5",amount:25,category:"tours",currency:"EUR",note:"Acropolis",date:"2026-04-03"},{id:"e6",amount:4.5,category:"coffee",currency:"EUR",note:"Cappuccino",date:"2026-04-03"},{id:"e7",amount:35,category:"groceries",currency:"EUR",note:"Super market",date:"2026-04-04"},{id:"e8",amount:60,category:"gifts",currency:"EUR",note:"Souvenirs",date:"2026-04-04"}]}];});
   const[activeTrip,setActiveTrip]=useState(null);
   const[screen,setScreen]=useState("home");
   const[tab,setTab]=useState("entries");
   const[sub,setSub]=useState(null);
   const[toast,setToast]=useState(null);
-  const[userName,setUserName]=useState("Traveler");
+  const[userName,setUserName]=useState(()=>localStorage.getItem('tt_userName')||"Traveler");
   const[editingName,setEditingName]=useState(false);
   const[menuOpen,setMenuOpen]=useState(false);
   const[newTrip,setNewTrip]=useState({name:"",country:"",budget:"",currency:"USD",startDate:"",endDate:""});
@@ -79,6 +79,8 @@ export default function App(){
   const[shareRole,setShareRole]=useState("viewer");
 
   const show=m=>{setToast(m);setTimeout(()=>setToast(null),2200)};
+  useEffect(()=>{try{localStorage.setItem('tt_trips',JSON.stringify(trips))}catch{}},[trips]);
+  useEffect(()=>{try{localStorage.setItem('tt_userName',userName)}catch{}},[userName]);
   useEffect(()=>{(async()=>{try{const r=await fetch("https://open.er-api.com/v6/latest/USD");const d=await r.json();if(d?.rates){setRates(d.rates);setRatesTime(new Date().toLocaleTimeString())}}catch{}})()},[]);
   useEffect(()=>{if(window.speechSynthesis){window.speechSynthesis.getVoices()}},[]);
 
@@ -88,18 +90,6 @@ export default function App(){
     audio.play().catch(()=>{if(window.speechSynthesis){window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang=tl;u.rate=0.85;window.speechSynthesis.speak(u)}})}
   function copyTxt(t){try{const a=document.createElement("textarea");a.value=t;a.style.cssText="position:fixed;opacity:0";document.body.appendChild(a);a.select();document.execCommand("copy");document.body.removeChild(a);show("Copied!");return true}catch{return false}}
 
-  // Demo data
-  const[init,setInit]=useState(false);
-  useEffect(()=>{if(!init){setTrips([{id:"d1",name:"Athens & Islands",country:"Greece",budget:2000,currency:"USD",startDate:"2026-04-01",endDate:"2026-04-14",shared:[],expenses:[
-    {id:"e1",amount:320,category:"flights",currency:"USD",note:"Round-trip",date:""},
-    {id:"e2",amount:55,category:"insurance",currency:"USD",note:"Travel insurance",date:""},
-    {id:"e3",amount:45,category:"food",currency:"EUR",note:"Dinner in Athens",date:"2026-04-02"},
-    {id:"e4",amount:120,category:"accommodation",currency:"EUR",note:"Airbnb",date:"2026-04-02"},
-    {id:"e5",amount:25,category:"tours",currency:"EUR",note:"Acropolis",date:"2026-04-03"},
-    {id:"e6",amount:4.5,category:"coffee",currency:"EUR",note:"Cappuccino",date:"2026-04-03"},
-    {id:"e7",amount:35,category:"groceries",currency:"EUR",note:"Super market",date:"2026-04-04"},
-    {id:"e8",amount:60,category:"gifts",currency:"EUR",note:"Souvenirs",date:"2026-04-04"},
-  ]}]);setInit(true)}},[init]);
 
   const trip=useMemo(()=>trips.find(t=>t.id===activeTrip),[trips,activeTrip]);
   const dated=useMemo(()=>trip?trip.expenses.filter(e=>e.date).sort((a,b)=>b.date.localeCompare(a.date)):[],[trip]);
