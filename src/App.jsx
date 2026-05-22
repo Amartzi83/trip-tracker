@@ -61,6 +61,7 @@ export default function App(){
   const[gistDraft,setGistDraft]=useState(()=>localStorage.getItem('tt_gist_id')||'');
   const[docCat,setDocCat]=useState("other");
   const fileInputRef=useRef(null);
+  const[discoverDest,setDiscoverDest]=useState("");
   const[activeTrip,setActiveTrip]=useState(null);
   const[screen,setScreen]=useState("home");
   const[tab,setTab]=useState("entries");
@@ -172,7 +173,7 @@ export default function App(){
 
   // CRUD
   function createTrip(){const n=newTrip.name.trim()||"My Trip";const id=gid();setTrips(p=>[...p,{id,...newTrip,name:n,budget:parseFloat(newTrip.budget)||0,expenses:[],shared:[]}]);setNewTrip({name:"",country:"",budget:"",currency:"USD",startDate:"",endDate:""});setActiveTrip(id);setScreen("trip");setTab("entries");show("Trip created!")}
-  function delTrip(id){setTrips(p=>p.filter(t=>t.id!==id));if(activeTrip===id){setActiveTrip(null);setScreen("home")}}
+  function delTrip(id){setTrips(p=>p.filter(t=>t.id!==id));if(activeTrip===id){setActiveTrip(null);setScreen("myTrips")}}
   function addExpense(){if(!newExp.amount||!trip)return;setTrips(p=>p.map(t=>t.id===activeTrip?{...t,expenses:[...t.expenses,{id:gid(),amount:parseFloat(newExp.amount),category:newExp.category,currency:newExp.currency,note:newExp.note,date:newExp.hasDate?newExp.date:""}]}:t));setNewExp({amount:"",category:"food",currency:trip.currency,note:"",date:new Date().toISOString().slice(0,10),hasDate:true});setSub(null);show("Added!")}
   function updateExp(){if(!editExp)return;setTrips(p=>p.map(t=>t.id===activeTrip?{...t,expenses:t.expenses.map(e=>e.id===editExp.id?{...editExp,amount:parseFloat(editExp.amount),date:editExp.hasDate?editExp.date:""}:e)}:t));setEditExp(null);setSub(null)}
   function delExp(id){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,expenses:t.expenses.filter(e=>e.id!==id)}:t))}
@@ -263,17 +264,30 @@ export default function App(){
   }
 
   /* ═══════════════════════════════════════════ */
-  /* HOME */
+  /* HOME — grid dashboard */
   if(screen==="home"){
-    return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 40px"}}><style>{css}</style>{toastEl}
+    const SECS=[
+      {title:"טיולים",items:[
+        {id:"myTrips",label:"הטיולים שלי",Icon:Plane,grad:"linear-gradient(135deg,#686DE0,#4834d4)",badge:trips.length||null,fn:()=>setScreen("myTrips")},
+        {id:"newTrip",label:"טיול חדש",Icon:Plus,grad:"linear-gradient(135deg,#FF4757,#c44569)",fn:()=>setScreen("addTrip")},
+      ]},
+      {title:"כלים",items:[
+        {id:"xe",label:"המרת מטבעות",Icon:ArrowLeftRight,grad:"linear-gradient(135deg,#22A6B3,#0097e6)",fn:()=>setScreen("xeScreen")},
+        {id:"tr",label:"תרגום",Icon:Globe,grad:"linear-gradient(135deg,#00B894,#1abc9c)",fn:()=>setScreen("translateScreen")},
+        {id:"disc",label:"גלה יעדים",Icon:Globe2,grad:"linear-gradient(135deg,#E17055,#d35400)",fn:()=>setScreen("discoverScreen")},
+        {id:"sync",label:"הגדרות סנכרון",Icon:Settings,grad:githubToken?"linear-gradient(135deg,#00E5A0,#00B894)":"linear-gradient(135deg,#636e72,#2d3436)",badge:githubToken?null:"!",fn:()=>setScreen("syncSettings")},
+      ]},
+    ];
+    return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"28px 16px 48px"}}><style>{css}</style>{toastEl}
       <div style={{maxWidth:480,margin:"0 auto"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:32}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:36}}>
           <div>
-            <div style={{fontSize:10,color:"var(--text2)",fontWeight:700,letterSpacing:"1.5px",marginBottom:6,textTransform:"uppercase"}}>Welcome back</div>
-            {editingName?<input autoFocus style={{...I,fontSize:26,fontWeight:900,padding:"4px 8px",width:220,background:"transparent",border:"1px solid var(--accent)"}} value={userName} onChange={e=>setUserName(e.target.value)} onBlur={()=>setEditingName(false)} onKeyDown={e=>{if(e.key==="Enter")setEditingName(false)}}/>
-            :<h1 onClick={()=>setEditingName(true)} style={{fontSize:28,fontWeight:900,letterSpacing:"-0.7px",cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>{userName}<Plane size={24} style={{color:"var(--accent)",transform:"rotate(-20deg)"}}/></h1>}
+            <div style={{fontSize:10,color:"var(--text2)",fontWeight:700,letterSpacing:"2px",marginBottom:6,textTransform:"uppercase"}}>ברוך הבא</div>
+            {editingName
+              ?<input autoFocus style={{...I,fontSize:26,fontWeight:900,padding:"4px 8px",width:200,background:"transparent",border:"1px solid var(--accent)"}} value={userName} onChange={e=>setUserName(e.target.value)} onBlur={()=>setEditingName(false)} onKeyDown={e=>{if(e.key==="Enter")setEditingName(false)}}/>
+              :<h1 onClick={()=>setEditingName(true)} style={{fontSize:28,fontWeight:900,letterSpacing:"-0.7px",cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>{userName}<Plane size={22} style={{color:"var(--accent)",transform:"rotate(-20deg)"}}/></h1>}
           </div>
-          <button onClick={()=>setScreen("syncSettings")} style={{width:44,height:44,borderRadius:16,background:"linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))",display:"flex",alignItems:"center",justifyContent:"center",border:`1px solid ${githubToken?"rgba(0,229,160,.3)":"var(--border)"}`,backdropFilter:"blur(10px)",cursor:"pointer",position:"relative"}}>
+          <button onClick={()=>setScreen("syncSettings")} style={{width:44,height:44,borderRadius:16,background:"rgba(255,255,255,0.04)",display:"flex",alignItems:"center",justifyContent:"center",border:`1px solid ${githubToken?"rgba(0,229,160,.3)":"var(--border)"}`,cursor:"pointer",position:"relative"}}>
             <Settings size={18} color={githubToken?"var(--accent)":"var(--text2)"}/>
             {syncStatus==='saving'&&<div style={{position:"absolute",top:8,right:8,width:7,height:7,borderRadius:"50%",background:"#F9CA24",animation:"pulse 1s infinite"}}/>}
             {syncStatus==='saved'&&<div style={{position:"absolute",top:8,right:8,width:7,height:7,borderRadius:"50%",background:"var(--accent)"}}/>}
@@ -281,58 +295,188 @@ export default function App(){
             {!syncStatus&&githubToken&&<div style={{position:"absolute",top:8,right:8,width:7,height:7,borderRadius:"50%",background:"var(--accent)",opacity:.6}}/>}
           </button>
         </div>
+        {SECS.map((sec,si)=>(
+          <div key={sec.title} style={{marginBottom:30}}>
+            <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:14,paddingRight:4}}>{sec.title}</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+              {sec.items.map(item=>{const Icon=item.Icon;return(
+                <button key={item.id} onClick={item.fn} style={{background:item.grad,borderRadius:24,border:"none",padding:"22px 14px 18px",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12,cursor:"pointer",position:"relative",boxShadow:"0 8px 28px rgba(0,0,0,.3)",minHeight:130,fontFamily:"Inter",transition:"transform .15s"}}>
+                  {item.badge!=null&&<div style={{position:"absolute",top:10,right:10,minWidth:22,height:22,borderRadius:11,background:"rgba(255,255,255,.25)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:"#fff",padding:"0 6px"}}>{item.badge}</div>}
+                  <div style={{width:56,height:56,borderRadius:18,background:"rgba(255,255,255,.18)",display:"flex",alignItems:"center",justifyContent:"center"}}><Icon size={28} color="#fff" strokeWidth={1.8}/></div>
+                  <span style={{fontSize:13,fontWeight:700,color:"#fff",textAlign:"center",lineHeight:1.35,letterSpacing:"-0.2px"}}>{item.label}</span>
+                </button>
+              );})}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>);
+  }
 
-        <button onClick={()=>setScreen("addTrip")} style={{width:"100%",padding:"20px 24px",borderRadius:22,border:"none",background:"linear-gradient(135deg,rgba(255,71,87,0.12),rgba(255,71,87,0.04))",color:"var(--red)",fontSize:16,fontWeight:800,cursor:"pointer",fontFamily:"Inter",marginBottom:28,display:"flex",alignItems:"center",justifyContent:"center",gap:14,letterSpacing:"-0.3px",boxShadow:"inset 0 0 0 1.5px rgba(255,71,87,0.25)",transition:"all .15s"}}>
-          <div style={{width:40,height:40,borderRadius:14,background:"linear-gradient(135deg,#FF4757,#FF6B81)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 16px rgba(255,71,87,.25)"}}><Plus size={22} color="#fff" strokeWidth={3}/></div>Add New Trip
-        </button>
-
+  /* MY TRIPS */
+  if(screen==="myTrips"){
+    return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 40px"}}><style>{css}</style>{toastEl}
+      <div style={{maxWidth:480,margin:"0 auto"}}>
+        <button onClick={()=>setScreen("home")} style={BK}><ChevronLeft size={18}/>בית</button>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",margin:"16px 0 24px"}}>
+          <h2 style={{fontSize:24,fontWeight:900,letterSpacing:"-0.5px",display:"flex",alignItems:"center",gap:10}}><Plane size={22} style={{color:"var(--accent)"}}/>הטיולים שלי</h2>
+          <button onClick={()=>setScreen("addTrip")} style={{width:40,height:40,borderRadius:14,border:"none",background:"linear-gradient(135deg,#FF4757,#FF6B81)",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",boxShadow:"0 4px 16px rgba(255,71,87,.3)"}}><Plus size={20} color="#fff" strokeWidth={2.5}/></button>
+        </div>
         {trips.length===0&&<div style={{textAlign:"center",padding:"60px 20px",color:"var(--text2)"}}>
           <div style={{width:80,height:80,borderRadius:24,background:"var(--card)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 20px",border:"1px solid var(--border)"}}><Globe size={36} strokeWidth={1} style={{opacity:.4}}/></div>
-          <p style={{fontSize:18,fontWeight:800,color:"var(--text)",marginBottom:8,letterSpacing:"-0.3px"}}>No trips yet</p><p style={{fontSize:13}}>Create your first trip to start tracking expenses</p>
+          <p style={{fontSize:18,fontWeight:800,color:"var(--text)",marginBottom:8}}>אין טיולים עדיין</p>
+          <p style={{fontSize:13}}>לחץ + ליצירת הטיול הראשון שלך</p>
         </div>}
-
         {trips.map((t,ti)=>{
           const spent=t.expenses.reduce((s,e)=>s+cv(e.amount,e.currency,t.currency),0);
-          const days=t.startDate&&t.endDate?dBtw(t.startDate,t.endDate):null;
-          const perDay=days?spent/days:0;
+          const perDay=t.startDate&&t.endDate?spent/dBtw(t.startDate,t.endDate):0;
           const pct=t.budget>0?Math.min((spent/t.budget)*100,100):0;
           const over=spent>t.budget&&t.budget>0;
-          const grad=getCountryGrad(t.country);
           return(
             <div key={t.id} onClick={()=>{setActiveTrip(t.id);setScreen("trip");setTab("entries");setSub(null)}}
-              style={{marginBottom:16,cursor:"pointer",position:"relative",animation:`fadeUp .4s ease ${ti*0.06}s both`,borderRadius:24,overflow:"hidden",border:"1px solid var(--border)"}}>
-              <div style={{background:grad,padding:"20px 20px 32px",position:"relative",overflow:"hidden"}}>
-                <div style={{position:"absolute",top:0,left:0,right:0,bottom:0,background:"linear-gradient(180deg,rgba(0,0,0,0) 0%,rgba(0,0,0,0.5) 100%)"}}/>
-                <div style={{position:"relative",zIndex:1}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-                    <div>
-                      <div style={{fontSize:42,lineHeight:1,marginBottom:8,filter:"drop-shadow(0 2px 8px rgba(0,0,0,.3))"}}>{gF(t.country)}</div>
-                      <div style={{fontWeight:900,fontSize:22,letterSpacing:"-0.5px",textShadow:"0 2px 8px rgba(0,0,0,.3)"}}>{t.name}</div>
-                    </div>
-                    <button onClick={e=>{e.stopPropagation();delTrip(t.id)}} style={{background:"rgba(0,0,0,0.3)",border:"none",borderRadius:10,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",backdropFilter:"blur(10px)"}}><X size={14} color="#fff"/></button>
+              style={{marginBottom:14,cursor:"pointer",animation:`fadeUp .4s ease ${ti*0.06}s both`,borderRadius:24,overflow:"hidden",border:"1px solid var(--border)"}}>
+              <div style={{background:getCountryGrad(t.country),padding:"20px 20px 28px",position:"relative",overflow:"hidden"}}>
+                <div style={{position:"absolute",top:0,left:0,right:0,bottom:0,background:"linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,0.5))"}}/>
+                <div style={{position:"relative",zIndex:1,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                  <div>
+                    <div style={{fontSize:40,lineHeight:1,marginBottom:6}}>{gF(t.country)}</div>
+                    <div style={{fontWeight:900,fontSize:20,letterSpacing:"-0.4px",textShadow:"0 2px 8px rgba(0,0,0,.3)"}}>{t.name}</div>
                   </div>
+                  <button onClick={e=>{e.stopPropagation();delTrip(t.id)}} style={{background:"rgba(0,0,0,0.3)",border:"none",borderRadius:10,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><X size={14} color="#fff"/></button>
                 </div>
               </div>
-              <div style={{background:"var(--surface)",padding:"16px 20px 18px"}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                  <div style={{display:"flex",gap:14,fontSize:12,color:"var(--text2)"}}>
-                    <span style={{display:"flex",alignItems:"center",gap:4}}><Clock size={13}/>{t.startDate?`${t.startDate.slice(5)} → ${(t.endDate||"?").slice(5)}`:"No dates"}{t.startDate&&t.endDate&&<span style={{marginLeft:4,background:"rgba(255,255,255,0.08)",borderRadius:6,padding:"1px 6px",fontWeight:700,color:"var(--accent)",fontSize:11}}>{dBtw(t.startDate,t.endDate)}d</span>}</span>
-                    <span style={{display:"flex",alignItems:"center",gap:4}}><Receipt size={13}/>{t.expenses.length}</span>
+              <div style={{background:"var(--surface)",padding:"14px 20px 16px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                  <div style={{display:"flex",gap:12,fontSize:12,color:"var(--text2)"}}>
+                    <span style={{display:"flex",alignItems:"center",gap:4}}><Clock size={12}/>{t.startDate?`${t.startDate.slice(5)} → ${(t.endDate||"?").slice(5)}`:"ללא תאריכים"}{t.startDate&&t.endDate&&<span style={{marginLeft:4,background:"rgba(255,255,255,0.08)",borderRadius:6,padding:"1px 6px",fontWeight:700,color:"var(--accent)",fontSize:10}}>{dBtw(t.startDate,t.endDate)}d</span>}</span>
+                    <span style={{display:"flex",alignItems:"center",gap:4}}><Receipt size={12}/>{t.expenses.length}</span>
                   </div>
-                  <div style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:"var(--text2)"}}><Users size={12}/>{userName}</div>
                 </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
-                  <div style={{fontSize:26,fontWeight:900,color:"var(--accent)",letterSpacing:"-0.8px"}}>{fC(spent,t.currency)}</div>
-                  {perDay>0&&<div style={{fontSize:13,color:"var(--text2)",fontWeight:600}}>{fC(perDay,t.currency)}<span style={{opacity:.5,fontWeight:400}}> /day</span></div>}
+                  <div style={{fontSize:24,fontWeight:900,color:"var(--accent)",letterSpacing:"-0.8px"}}>{fC(spent,t.currency)}</div>
+                  {perDay>0&&<div style={{fontSize:12,color:"var(--text2)",fontWeight:600}}>{fC(perDay,t.currency)}<span style={{opacity:.5}}> /day</span></div>}
                 </div>
-                {t.budget>0&&<div style={{marginTop:12}}>
-                  <div style={{height:6,borderRadius:3,background:"rgba(255,255,255,0.06)",overflow:"hidden"}}><div style={{height:"100%",borderRadius:3,width:`${pct}%`,background:over?"linear-gradient(90deg,#FF4757,#FF6B81)":"linear-gradient(90deg,#00E5A0,#00C9DB)",transition:"width .5s",boxShadow:over?"0 0 12px rgba(255,71,87,.3)":"0 0 12px rgba(0,229,160,.2)"}}/></div>
-                  <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginTop:5,color:"var(--text2)"}}><span>{pct.toFixed(0)}% used</span><span style={{fontWeight:700,color:over?"var(--red)":"var(--accent)"}}>{over?"Over budget":fC(t.budget-spent,t.currency)+" left"}</span></div>
+                {t.budget>0&&<div style={{marginTop:10}}>
+                  <div style={{height:5,borderRadius:3,background:"rgba(255,255,255,0.06)",overflow:"hidden"}}><div style={{height:"100%",borderRadius:3,width:`${pct}%`,background:over?"linear-gradient(90deg,#FF4757,#FF6B81)":"linear-gradient(90deg,#00E5A0,#00C9DB)"}}/></div>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginTop:4,color:"var(--text2)"}}><span>{pct.toFixed(0)}% used</span><span style={{fontWeight:600,color:over?"var(--red)":"var(--accent)"}}>{over?"Over budget":fC(t.budget-spent,t.currency)+" left"}</span></div>
                 </div>}
               </div>
             </div>
           );
         })}
+      </div>
+    </div>);
+  }
+
+  /* STANDALONE XE */
+  if(screen==="xeScreen"){
+    const res=cv(parseFloat(convAmt)||0,convFrom,convTo);const rate=cv(1,convFrom,convTo);
+    return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 40px"}}><style>{css}</style>{toastEl}
+      <div style={{maxWidth:480,margin:"0 auto"}}>
+        <button onClick={()=>setScreen("home")} style={BK}><ChevronLeft size={18}/>בית</button>
+        <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 22px",display:"flex",alignItems:"center",gap:8}}><ArrowLeftRight size={22} style={{color:"var(--accent)"}}/>המרת מטבעות</h2>
+        <div style={{...C,marginBottom:16}}>
+          <input style={{...I,fontSize:30,fontWeight:800,textAlign:"center",marginBottom:16,background:"transparent"}} type="number" step="0.01" value={convAmt} onChange={e=>setConvAmt(e.target.value)}/>
+          <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:16}}>
+            <div style={{flex:1}}><select style={I} value={convFrom} onChange={e=>setConvFrom(e.target.value)}>{CURRS.map(c=><option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}</select></div>
+            <button onClick={()=>{setConvFrom(convTo);setConvTo(convFrom)}} style={{width:40,height:40,borderRadius:14,border:"1px solid var(--border)",background:"var(--card)",color:"var(--accent)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><ArrowLeftRight size={18}/></button>
+            <div style={{flex:1}}><select style={I} value={convTo} onChange={e=>setConvTo(e.target.value)}>{CURRS.map(c=><option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}</select></div>
+          </div>
+          <div style={{background:"var(--bg)",borderRadius:16,padding:20,textAlign:"center",border:"1px solid var(--border)"}}>
+            <div style={{fontSize:34,fontWeight:800,color:"var(--accent)",letterSpacing:"-1px"}}>{fC(res,convTo)}</div>
+            <div style={{fontSize:12,color:"var(--text2)",marginTop:6}}>1 {convFrom} = {rate.toFixed(4)} {convTo}</div>
+          </div>
+          {ratesTime&&<div style={{fontSize:11,color:"var(--accent)",textAlign:"center",marginTop:10,fontWeight:600}}>✓ Live · {ratesTime}</div>}
+        </div>
+        <div style={C}><div style={{...L,marginBottom:12}}>Quick Rates</div>
+          {CURRS.filter(c=>c.code!==convFrom).slice(0,8).map(c=>{const r=cv(1,convFrom,c.code);return(
+            <div key={c.code} onClick={()=>setConvTo(c.code)} style={{display:"flex",justifyContent:"space-between",padding:"9px 0",borderBottom:"1px solid var(--border)",cursor:"pointer",fontSize:13}}>
+              <span style={{fontWeight:500}}>{c.symbol} {c.code}</span><span style={{fontWeight:700}}>{r.toFixed(c.code==="JPY"?2:4)}</span></div>)})}
+        </div>
+      </div>
+    </div>);
+  }
+
+  /* STANDALONE TRANSLATE */
+  if(screen==="translateScreen"){
+    const fl=LANGS.find(l=>l.code===trFrom),tl2=LANGS.find(l=>l.code===trTo);
+    return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 40px"}}><style>{css}</style>{toastEl}
+      <div style={{maxWidth:480,margin:"0 auto"}}>
+        <button onClick={()=>setScreen("home")} style={BK}><ChevronLeft size={18}/>בית</button>
+        <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 4px",display:"flex",alignItems:"center",gap:8}}><Globe size={22} style={{color:"var(--accent)"}}/>תרגום</h2>
+        <p style={{fontSize:11,color:"var(--text2)",marginBottom:18}}>מופעל ע"י Google Translate · חינמי</p>
+        <div style={{...C,marginBottom:16}}>
+          <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:14}}>
+            <div style={{flex:1}}><select style={I} value={trFrom} onChange={e=>setTrFrom(e.target.value)}>{LANGS.map(l=><option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}</select></div>
+            <button onClick={()=>{setTrFrom(trTo);setTrTo(trFrom);setTrResult("")}} style={{width:40,height:40,borderRadius:14,border:"1px solid var(--border)",background:"var(--card)",color:"var(--accent)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><ArrowLeftRight size={18}/></button>
+            <div style={{flex:1}}><select style={I} value={trTo} onChange={e=>setTrTo(e.target.value)}>{LANGS.map(l=><option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}</select></div>
+          </div>
+          <textarea style={{...I,minHeight:70,resize:"vertical",marginBottom:12}} placeholder={`כתוב ב${fl?.name||""}...`} value={trText} onChange={e=>setTrText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();doTranslate(trText)}}}/>
+          <button style={{...B1,opacity:trLoading?.6:1}} onClick={()=>doTranslate(trText)} disabled={trLoading}>{trLoading?"מתרגם...":"תרגם"}</button>
+          {trResult&&<div style={{background:"var(--bg)",borderRadius:16,padding:16,marginTop:16,border:"1px solid var(--border)"}}>
+            <div style={{marginBottom:12,paddingBottom:12,borderBottom:"1px solid var(--border)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><span style={{fontSize:11,color:"var(--text2)"}}>{fl?.flag} {fl?.name}</span>
+                <button onClick={()=>speak(trText,trFrom)} style={{background:"none",border:"1px solid var(--border)",borderRadius:10,padding:"4px 12px",cursor:"pointer",display:"flex",alignItems:"center",gap:4,fontSize:11,color:"var(--accent)",fontFamily:"Inter"}}><Volume2 size={14}/>נגן</button></div>
+              <div style={{fontSize:13,color:"var(--text2)"}}>{trText}</div></div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+              <span style={{fontSize:11,color:"var(--accent)",fontWeight:700}}>{tl2?.flag} {tl2?.name}</span>
+              <div style={{display:"flex",gap:6}}>
+                <button onClick={()=>copyTxt(trResult)} style={{background:"none",border:"1px solid var(--border)",borderRadius:10,padding:"5px 12px",cursor:"pointer",display:"flex",alignItems:"center",gap:4,fontSize:11,color:"var(--text2)",fontFamily:"Inter"}}><Copy size={13}/>העתק</button>
+                <button onClick={()=>speak(trResult,trTo)} style={{background:"var(--accent)",border:"none",borderRadius:10,padding:"6px 14px",cursor:"pointer",display:"flex",alignItems:"center",gap:4,fontSize:12,color:"#000",fontWeight:700,fontFamily:"Inter"}}><Volume2 size={14}/>האזן</button>
+              </div>
+            </div>
+            <div style={{fontSize:20,fontWeight:700,lineHeight:1.5,direction:"auto"}}>{trResult}</div>
+          </div>}
+        </div>
+        <div style={C}><div style={{...L,marginBottom:12}}>משפטים שימושיים</div>
+          <div style={{display:"flex",flexDirection:"column",gap:5}}>{PHRASES.map((p,i)=><button key={i} onClick={()=>{setTrText(p);doTranslate(p)}} style={{textAlign:"left",padding:"10px 14px",borderRadius:12,border:"1px solid var(--border)",background:"var(--card)",color:"var(--text)",cursor:"pointer",fontSize:12,fontFamily:"Inter",fontWeight:500}}>{p}</button>)}</div>
+        </div>
+      </div>
+    </div>);
+  }
+
+  /* STANDALONE DISCOVER */
+  if(screen==="discoverScreen"){
+    const dest=discoverDest||trips[0]?.country||"";
+    const q=encodeURIComponent(dest);
+    const DISC=[
+      {name:"Google Maps",url:`https://www.google.com/maps/search/${q}`,Icon:Map,color:"#4285F4",desc:"ניווט וחקר"},
+      {name:"TripAdvisor",url:`https://www.tripadvisor.com/Search?q=${q}`,Icon:Star,color:"#00A680",desc:"ביקורות ואטרקציות"},
+      {name:"Booking.com",url:`https://www.booking.com/searchresults.html?ss=${q}`,Icon:Hotel,color:"#003580",desc:"מלונות ולינה"},
+      {name:"Airbnb",url:`https://www.airbnb.com/s/${q}`,Icon:Palmtree,color:"#FF5A5F",desc:"דירות ולינה ייחודית"},
+      {name:"טיסות",url:`https://www.google.com/travel/flights`,Icon:Plane,color:"#686DE0",desc:"מצא טיסות זולות"},
+      {name:"מסעדות",url:`https://www.google.com/maps/search/restaurants+in+${q}`,Icon:Utensils,color:"#FF6B6B",desc:"האוכל הטוב ביותר"},
+      {name:"אטרקציות",url:`https://www.google.com/maps/search/tourist+attractions+in+${q}`,Icon:Landmark,color:"#E17055",desc:"מה לראות"},
+      {name:"YouTube",url:`https://www.youtube.com/results?search_query=${q}+travel+guide`,Icon:Camera,color:"#FF0000",desc:"מדריכי טיול"},
+      {name:"מזג אוויר",url:`https://www.weather.com/weather/today/l/${q}`,Icon:Sun,color:"#FFC107",desc:"תחזית מקומית"},
+      {name:"עלות מחיה",url:`https://www.numbeo.com/cost-of-living/in/${dest.replace(/ /g,"-")}`,Icon:DollarSign,color:"#55E6C1",desc:"מחירים ותקציב"},
+      {name:"כיוונים",url:`https://www.google.com/maps/dir/?api=1&destination=${q}`,Icon:Navigation,color:"#A29BFE",desc:"קבל הוראות הגעה"},
+      {name:"תרגום",url:`https://translate.google.com/?sl=auto&tl=he`,Icon:Globe,color:"#00B894",desc:"Google Translate"},
+    ];
+    return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 40px"}}><style>{css}</style>{toastEl}
+      <div style={{maxWidth:480,margin:"0 auto"}}>
+        <button onClick={()=>setScreen("home")} style={BK}><ChevronLeft size={18}/>בית</button>
+        <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 16px",display:"flex",alignItems:"center",gap:8}}><Globe2 size={22} style={{color:"var(--accent)"}}/>גלה יעדים</h2>
+        <div style={{...C,marginBottom:20}}>
+          <label style={L}>יעד</label>
+          <input style={I} placeholder="לדוגמא: Greece, Tokyo, Barcelona..." value={discoverDest} onChange={e=>setDiscoverDest(e.target.value)}/>
+        </div>
+        {dest&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          {DISC.map(({name,url,Icon,color,desc},i)=>(
+            <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+              style={{...C,padding:"16px 14px",textDecoration:"none",display:"flex",flexDirection:"column",gap:8,borderColor:`${color}22`,animation:`fadeUp .3s ease ${i*0.03}s both`}}>
+              <div style={{width:40,height:40,borderRadius:13,background:`${color}22`,display:"flex",alignItems:"center",justifyContent:"center"}}><Icon size={20} color={color}/></div>
+              <div style={{fontWeight:700,fontSize:13,color:"var(--text)"}}>{name}</div>
+              <div style={{fontSize:10,color:"var(--text2)",lineHeight:1.4}}>{desc}</div>
+              <div style={{display:"flex",alignItems:"center",gap:3,fontSize:10,color,fontWeight:600}}>פתח <ExternalLink size={10}/></div>
+            </a>
+          ))}
+        </div>}
+        {!dest&&<div style={{textAlign:"center",padding:"40px 20px",color:"var(--text2)"}}>
+          <Globe2 size={48} strokeWidth={1} style={{marginBottom:12,opacity:.25}}/>
+          <p style={{fontWeight:600,color:"var(--text)",marginBottom:6}}>הכנס יעד לחיפוש</p>
+          <p style={{fontSize:12}}>יפתחו קישורים לכל המידע על היעד</p>
+        </div>}
       </div>
     </div>);
   }
@@ -393,7 +537,7 @@ export default function App(){
   if(screen==="addTrip"){
     return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px"}}><style>{css}</style>{toastEl}
       <div style={{maxWidth:480,margin:"0 auto"}}>
-        <button onClick={()=>setScreen("home")} style={BK}><ChevronLeft size={18}/>Back</button>
+        <button onClick={()=>setScreen("myTrips")} style={BK}><ChevronLeft size={18}/>Back</button>
         <h2 style={{fontSize:26,fontWeight:800,margin:"20px 0 28px",letterSpacing:"-0.5px",display:"flex",alignItems:"center",gap:10}}><Plane size={24} style={{color:"var(--accent)"}}/>New Trip</h2>
         <div style={{display:"flex",flexDirection:"column",gap:18}}>
           <div><label style={L}>Trip Name</label><input style={I} placeholder="Athens & Islands" value={newTrip.name} onChange={e=>setNewTrip(p=>({...p,name:e.target.value}))}/></div>
@@ -594,7 +738,7 @@ export default function App(){
         <div style={C}><div style={{...L,marginBottom:12}}>Trip Info</div>
           {[["Country",trip.country||"—"],["Dates",`${trip.startDate||"—"} → ${trip.endDate||"—"}`],["Budget",trip.budget?fC(trip.budget,trip.currency):"—"],["Expenses",""+trip.expenses.length],["Shared",`${(trip.shared||[]).length} people`]].map(([k,v],i)=>
             <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderTop:i?"1px solid var(--border)":"none",fontSize:13}}><span style={{color:"var(--text2)"}}>{k}</span><span style={{fontWeight:600}}>{v}</span></div>)}</div>
-        <button style={{...B2,color:"var(--red)",display:"flex",alignItems:"center",justifyContent:"center",gap:6}} onClick={()=>{delTrip(trip.id);setScreen("home");setSub(null)}}><Trash2 size={16}/>Delete Trip</button>
+        <button style={{...B2,color:"var(--red)",display:"flex",alignItems:"center",justifyContent:"center",gap:6}} onClick={()=>{delTrip(trip.id);setScreen("myTrips");setSub(null)}}><Trash2 size={16}/>Delete Trip</button>
       </div></div><TabBar/></div>);}
 
     /* ═══ ENTRIES ═══ */
@@ -602,7 +746,7 @@ export default function App(){
       const gr={};dated.forEach(e=>{if(!gr[e.date])gr[e.date]=[];gr[e.date].push(e)});
       return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"16px 16px 100px"}}><style>{css}</style>{toastEl}<div style={{maxWidth:480,margin:"0 auto"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-          <button onClick={()=>{setScreen("home");setActiveTrip(null);setMenuOpen(false)}} style={BK}><ChevronLeft size={18}/>Trips</button>
+          <button onClick={()=>{setScreen("myTrips");setActiveTrip(null);setMenuOpen(false)}} style={BK}><ChevronLeft size={18}/>Trips</button>
           <div style={{position:"relative"}}>
             <button onClick={()=>setMenuOpen(!menuOpen)} style={{background:"none",border:"none",cursor:"pointer",padding:8}}><MoreVertical size={20} color="var(--text2)"/></button>
             {menuOpen&&<><div onClick={()=>setMenuOpen(false)} style={{position:"fixed",top:0,left:0,right:0,bottom:0,zIndex:60}}/><div style={{position:"absolute",top:"100%",right:0,width:230,background:"rgba(20,24,32,0.98)",border:"1px solid var(--border)",borderRadius:18,boxShadow:"0 12px 40px rgba(0,0,0,.6)",zIndex:70,overflow:"hidden",backdropFilter:"blur(30px)",animation:"fadeUp .15s"}}>
