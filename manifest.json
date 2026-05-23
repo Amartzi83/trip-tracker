@@ -1,0 +1,25 @@
+{
+  "name": "Trip Tracker",
+  "short_name": "Trips",
+  "description": "מדריך הטיול לתאילנד",
+  "start_url": "/trip-tracker/",
+  "scope": "/trip-tracker/",
+  "display": "standalone",
+  "background_color": "#1E5BD6",
+  "theme_color": "#1E5BD6",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/trip-tracker/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/trip-tracker/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
