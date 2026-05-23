@@ -33,7 +33,7 @@ const LANGS=[{code:"en",name:"English",flag:"🇬🇧"},{code:"he",name:"Hebrew"
 const PHRASES=["How much does this cost?","Where is the bathroom?","Can I have the bill?","Thank you very much","Do you speak English?","I need help","Where is the nearest hospital?","How do I get to the airport?","I have a reservation","One ticket please","Can you recommend a restaurant?","I'm allergic to...","No spicy please","Water please","Can I pay by card?","I'm lost","Call the police","Where is the bus station?","How far is it?","Good morning"];
 
 function gid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
-function dBtw(a,b){return Math.max(1,Math.ceil((new Date(b)-new Date(a))/864e5)+1)}
+function dBtw(a,b){return Math.max(1,Math.round((new Date(b)-new Date(a))/864e5))}
 function gF(c){return FLAGS[c]||"🌍"}
 function fC(a,c){const s=CURRS.find(x=>x.code===c);return(s?s.symbol:c)+a.toFixed(c==="JPY"?0:2)}
 
@@ -322,12 +322,12 @@ export default function App(){
         {/* Hero trip card */}
         {heroTrip&&(()=>{
           const t=heroTrip;
-          const days=t.startDate&&t.endDate?Math.ceil((new Date(t.endDate)-new Date(t.startDate))/(1000*60*60*24))+1:null;
-          const total=days||14;
+          const days=t.startDate&&t.endDate?Math.round((new Date(t.endDate)-new Date(t.startDate))/(1000*60*60*24)):null;
+          const total=days||1;
           const now=new Date();
           const start=t.startDate?new Date(t.startDate):null;
           const end=t.endDate?new Date(t.endDate):null;
-          const done=(!start||now<start)?0:(!end||now>end)?total:Math.max(1,Math.ceil((now-start)/(1000*60*60*24)));
+          const done=(!start||now<start)?0:(!end||now>end)?total:Math.min(total,Math.round((now-start)/(1000*60*60*24)));
           return(
             <div style={{marginBottom:28}}>
               <div onClick={()=>{setActiveTrip(t.id);setScreen("trip");setTab("entries");}} style={{background:"linear-gradient(135deg,#1E5BD6,#163FA5)",borderRadius:22,padding:"18px 20px 20px",color:"#fff",position:"relative",overflow:"hidden",cursor:"pointer",boxShadow:"0 8px 28px rgba(30,91,214,.3)"}}>
