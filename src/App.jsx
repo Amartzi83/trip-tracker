@@ -322,7 +322,7 @@ export default function App(){
             <div style={{fontSize:13,color:"rgba(255,255,255,0.85)",fontWeight:500,marginBottom:3}}>שלום, {editingName?"":`${userName} 👋`}</div>
             {editingName
               ?<input autoFocus style={{...I,fontSize:20,fontWeight:800,padding:"4px 8px",width:180}} value={userName} onChange={e=>setUserName(e.target.value)} onBlur={()=>setEditingName(false)} onKeyDown={e=>{if(e.key==="Enter")setEditingName(false)}}/>
-              :<div onClick={()=>setEditingName(true)} style={{fontSize:15,fontWeight:700,color:"#fff",cursor:"pointer",textShadow:"0 1px 4px rgba(0,0,0,0.3)"}}>יום {new Date().toLocaleDateString("he-IL",{weekday:"long",day:"numeric",month:"long"})}</div>}
+              :<div onClick={()=>setEditingName(true)} style={{fontSize:15,fontWeight:700,color:"#fff",cursor:"pointer",textShadow:"0 1px 4px rgba(0,0,0,0.3)"}}>{new Date().toLocaleDateString("he-IL",{weekday:"long",day:"numeric",month:"long"})}</div>}
           </div>
           <div style={{display:"flex",gap:8}}>
             <button onClick={()=>setScreen("syncSettings")} style={{width:40,height:40,borderRadius:13,background:"rgba(255,255,255,0.18)",backdropFilter:"blur(10px)",boxShadow:"0 2px 12px rgba(0,0,0,0.15)",display:"flex",alignItems:"center",justifyContent:"center",border:"1px solid rgba(255,255,255,0.25)",cursor:"pointer",position:"relative"}}>
