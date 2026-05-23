@@ -324,6 +324,7 @@ export default function App(){
         {id:"finance",label:"כספים ועמלות",sub:"שערים ועמלות בנק",Icon:CreditCard,color:"#f0932b",fn:()=>setScreen("financeScreen")},
         {id:"events",label:"אירועים וחגים",sub:"לוח אירועים",Icon:CalendarDays,color:"#e84393",fn:()=>setScreen("eventsScreen")},
         {id:"links",label:"קישורים שימושיים",sub:"כל כלי הטיול",Icon:Link2,color:"#6c5ce7",fn:()=>setScreen("linksScreen")},
+        {id:"thaiApps",label:"אפליקציות לתאילנד",sub:"Grab · Bolt · Lazada",Icon:Smartphone,color:"#00B14F",fn:()=>setScreen("thaiAppsScreen")},
       ]},
     ];
     const heroTrip=trips.length>0?trips[trips.length-1]:null;
@@ -862,6 +863,72 @@ export default function App(){
               <div style={{display:"flex",alignItems:"center",gap:3,fontSize:10,color,fontWeight:600}}>פתח <ExternalLink size={10}/></div>
             </a>
           ))}
+        </div>
+      </div>
+    </div>);
+  }
+
+  /* THAI APPS SCREEN */
+  if(screen==="thaiAppsScreen"){
+    const APPS=[
+      {cat:"🚗 תחבורה",sub:"הזמנת רכב, מוניות ואופנועים",color:"#00B14F",items:[
+        {name:"Grab",domain:"grab.com",url:"https://www.grab.com/th/",color:"#00B14F",desc:"הכי פופולרי · מוניות, אופנוע GrabBike, אוכל"},
+        {name:"Bolt",domain:"bolt.eu",url:"https://bolt.eu/en-th/",color:"#34D186",desc:"בדרך כלל זול מ-Grab · ממשק נוח"},
+        {name:"Tada",domain:"tada.global",url:"https://tada.global/",color:"#1A1A2E",desc:"ללא עמלות לנהגים · מחיר הוגן יותר"},
+        {name:"inDrive",domain:"indrive.com",url:"https://indrive.com/en/home/",color:"#41B658",desc:"מתמקחים על המחיר ישירות עם הנהג"},
+      ]},
+      {cat:"🍜 אוכל ומשלוחים",sub:"משלוחים הביתה ומסעדות",color:"#FF4B4B",items:[
+        {name:"Bolt Food",domain:"food.bolt.eu",url:"https://food.bolt.eu/",color:"#34D186",desc:"משלוחים מהירים · מבצעים תכופים"},
+        {name:"LINE MAN",domain:"lineman.me",url:"https://www.lineman.me/en",color:"#00B900",desc:"הכי נפוץ בתאילנד · עובד מעולה"},
+        {name:"Hungry Hub",domain:"hungryhub.com",url:"https://www.hungryhub.com/",color:"#FF4B4B",desc:"מסעדות פרימיום · סטים וBAF · עושה הפתעות"},
+      ]},
+      {cat:"💆 בריאות וספא",sub:"עיסויים, ספא וטיפולים",color:"#9B59B6",items:[
+        {name:"GoWobi",domain:"gowobi.com",url:"https://www.gowobi.com/",color:"#9B59B6",desc:"הזמנת ספא ועיסויים מראש · עם ביקורות"},
+      ]},
+      {cat:"🛒 קניות",sub:"שופינג אונליין עד הדלת",color:"#F57224",items:[
+        {name:"Lazada",domain:"lazada.co.th",url:"https://www.lazada.co.th/",color:"#F57224",desc:"אמזון של דרום-מזרח אסיה · משלוח מהיר"},
+        {name:"Shopee",domain:"shopee.co.th",url:"https://shopee.co.th/",color:"#EE4D2D",desc:"מחירים נמוכים · מבצעים יומיים"},
+      ]},
+    ];
+    function AppLogo({domain,color,name}){
+      const[err,setErr]=useState(false);
+      if(err)return(<div style={{width:44,height:44,borderRadius:14,background:`${color}22`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:16,color}}>{name[0]}</div>);
+      return(<img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`} onError={()=>setErr(true)} style={{width:44,height:44,borderRadius:14,objectFit:"contain",background:"#fff",border:"1px solid var(--border)",padding:4}} alt={name}/>);
+    }
+    return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 48px"}}><style>{css}</style>{toastEl}
+      <div style={{maxWidth:480,margin:"0 auto"}}>
+        <button onClick={()=>setScreen("home")} style={BK}><ChevronLeft size={18}/>בית</button>
+        <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 4px",display:"flex",alignItems:"center",gap:8}}><Smartphone size={22} style={{color:"#00B14F"}}/>אפליקציות לתאילנד</h2>
+        <p style={{fontSize:11,color:"var(--text2)",marginBottom:24}}>האפליקציות הכי שימושיות לטיול בתאילנד</p>
+        {APPS.map((sec,si)=>(
+          <div key={si} style={{marginBottom:28}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
+              <div style={{width:36,height:36,borderRadius:12,background:`${sec.color}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>{sec.cat.split(" ")[0]}</div>
+              <div>
+                <div style={{fontWeight:800,fontSize:15,color:"var(--text)"}}>{sec.cat.slice(3)}</div>
+                <div style={{fontSize:11,color:"var(--text2)"}}>{sec.sub}</div>
+              </div>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              {sec.items.map((app,ai)=>(
+                <a key={ai} href={app.url} target="_blank" rel="noopener noreferrer"
+                  style={{...C,padding:"14px 16px",textDecoration:"none",display:"flex",alignItems:"center",gap:14,borderColor:`${app.color}22`}}>
+                  <AppLogo domain={app.domain} color={app.color} name={app.name}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontWeight:800,fontSize:14,color:"var(--text)"}}>{app.name}</div>
+                    <div style={{fontSize:11,color:"var(--text2)",marginTop:2,lineHeight:1.4}}>{app.desc}</div>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:app.color,fontWeight:700,flexShrink:0}}>
+                    פתח<ExternalLink size={12}/>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        ))}
+        <div style={{...C,padding:"14px 16px",background:"rgba(30,91,214,0.04)",borderColor:"rgba(30,91,214,0.15)"}}>
+          <div style={{fontSize:12,fontWeight:700,color:"var(--accent)",marginBottom:6}}>💡 טיפ</div>
+          <div style={{fontSize:12,color:"var(--text2)",lineHeight:1.6}}>הורד את Grab לפני הנסיעה — היא עובדת גם בלי SIM מקומי דרך WiFi. Bolt בדרך כלל זולה ב-10–20% מ-Grab.</div>
         </div>
       </div>
     </div>);
