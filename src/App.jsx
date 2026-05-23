@@ -932,6 +932,12 @@ export default function App(){
         {name:"GetYourGuide",domain:"getyourguide.com",url:"https://www.getyourguide.com/thailand-l189/",color:"#FF5757",desc:"סיורים מודרכים · גמיש וקל לביטול"},
         {name:"Viator",domain:"viator.com",url:"https://www.viator.com/Thailand/d21-ttd",color:"#29ABE2",desc:"חוויות ייחודיות · כולל ביקורות TripAdvisor"},
       ]},
+      {cat:"🏨 לינה ומלונות",sub:"הזמנת חדרים ואכסניות",color:"#003580",items:[
+        {name:"Agoda",domain:"agoda.com",url:"https://www.agoda.com/country/thailand.html",color:"#003580",desc:"הכי טוב לתאילנד · מחירים נמוכים מאוד"},
+        {name:"Booking.com",domain:"booking.com",url:"https://www.booking.com/country/th.html",color:"#003580",desc:"מגוון רחב · ביטול חינם בדרך כלל"},
+        {name:"Trip.com",domain:"trip.com",url:"https://www.trip.com/hotels/list?city=Thailand",color:"#1A7EDE",desc:"מחירים תחרותיים · כולל טיסות"},
+        {name:"Hostelworld",domain:"hostelworld.com",url:"https://www.hostelworld.com/search?country=Thailand",color:"#F15D00",desc:"הוסטלים וחדרים זולים"},
+      ]},
       {cat:"📡 SIM ותקשורת",sub:"eSIM, מסרונים ותקשורת מקומית",color:"#0097e6",items:[
         {name:"LINE",domain:"line.me",url:"https://line.me/en/",color:"#00B900",desc:"הוואצאפ של תאילנד · הכרחי לתקשורת עם מקומיים"},
         {name:"Airalo",domain:"airalo.com",url:"https://www.airalo.com/thailand-esim",color:"#2660FF",desc:"eSIM לתאילנד · קונים לפני הטיסה בקלות"},
