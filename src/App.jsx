@@ -294,25 +294,36 @@ export default function App(){
       ]},
     ];
     const heroTrip=trips.length>0?trips[trips.length-1]:null;
+    const BG_IMGS=[
+      'https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?w=1280&q=80&fit=crop&auto=format',
+      'https://images.unsplash.com/photo-1528181304800-259b08848526?w=1280&q=80&fit=crop&auto=format',
+      'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1280&q=80&fit=crop&auto=format',
+      'https://images.unsplash.com/photo-1583417319070-4a69db38a482?w=1280&q=80&fit=crop&auto=format',
+    ];
+    const todayImg=BG_IMGS[Math.floor(Date.now()/86400000)%BG_IMGS.length];
     return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"0 0 48px",position:"relative",overflow:"hidden"}}><style>{css}</style>{toastEl}
+      {/* Daily photo background */}
+      <div style={{position:"absolute",top:0,left:0,right:0,height:330,backgroundImage:`url(${todayImg})`,backgroundSize:"cover",backgroundPosition:"center 40%",zIndex:0}}>
+        <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom,rgba(0,0,0,0.48) 0%,rgba(0,0,0,0.28) 40%,rgba(244,247,254,0.88) 82%,#F4F7FE 100%)"}}/>
+      </div>
       <SparkleBg/>
-      <div style={{maxWidth:480,margin:"0 auto",padding:"0 16px",position:"relative"}}>
+      <div style={{maxWidth:480,margin:"0 auto",padding:"0 16px",position:"relative",zIndex:1}}>
         {/* Header */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"54px 0 20px"}}>
           <div>
-            <div style={{fontSize:13,color:"var(--text2)",fontWeight:500,marginBottom:3}}>שלום, {editingName?"":`${userName} 👋`}</div>
+            <div style={{fontSize:13,color:"rgba(255,255,255,0.85)",fontWeight:500,marginBottom:3}}>שלום, {editingName?"":`${userName} 👋`}</div>
             {editingName
               ?<input autoFocus style={{...I,fontSize:20,fontWeight:800,padding:"4px 8px",width:180}} value={userName} onChange={e=>setUserName(e.target.value)} onBlur={()=>setEditingName(false)} onKeyDown={e=>{if(e.key==="Enter")setEditingName(false)}}/>
-              :<div onClick={()=>setEditingName(true)} style={{fontSize:15,fontWeight:700,color:"var(--text)",cursor:"pointer"}}>יום {new Date().toLocaleDateString("he-IL",{weekday:"long",day:"numeric",month:"long"})}</div>}
+              :<div onClick={()=>setEditingName(true)} style={{fontSize:15,fontWeight:700,color:"#fff",cursor:"pointer",textShadow:"0 1px 4px rgba(0,0,0,0.3)"}}>יום {new Date().toLocaleDateString("he-IL",{weekday:"long",day:"numeric",month:"long"})}</div>}
           </div>
           <div style={{display:"flex",gap:8}}>
-            <button onClick={()=>setScreen("syncSettings")} style={{width:40,height:40,borderRadius:13,background:"var(--card)",boxShadow:"var(--shadow)",display:"flex",alignItems:"center",justifyContent:"center",border:"none",cursor:"pointer",position:"relative"}}>
-              <Settings size={18} color={githubToken?"var(--accent)":"var(--text2)"}/>
+            <button onClick={()=>setScreen("syncSettings")} style={{width:40,height:40,borderRadius:13,background:"rgba(255,255,255,0.18)",backdropFilter:"blur(10px)",boxShadow:"0 2px 12px rgba(0,0,0,0.15)",display:"flex",alignItems:"center",justifyContent:"center",border:"1px solid rgba(255,255,255,0.25)",cursor:"pointer",position:"relative"}}>
+              <Settings size={18} color={githubToken?"#fff":"rgba(255,255,255,0.75)"}/>
               {syncStatus==='saving'&&<div style={{position:"absolute",top:8,right:8,width:7,height:7,borderRadius:"50%",background:"#F9CA24",animation:"pulse 1s infinite"}}/>}
-              {syncStatus==='saved'&&<div style={{position:"absolute",top:8,right:8,width:7,height:7,borderRadius:"50%",background:"var(--accent)"}}/>}
-              {syncStatus==='error'&&<div style={{position:"absolute",top:8,right:8,width:7,height:7,borderRadius:"50%",background:"var(--red)"}}/>}
+              {syncStatus==='saved'&&<div style={{position:"absolute",top:8,right:8,width:7,height:7,borderRadius:"50%",background:"#7fff00"}}/>}
+              {syncStatus==='error'&&<div style={{position:"absolute",top:8,right:8,width:7,height:7,borderRadius:"50%",background:"#ff4757"}}/>}
             </button>
-            <div style={{width:40,height:40,borderRadius:13,background:"linear-gradient(135deg,#1E5BD6,#163FA5)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:700,color:"#fff"}}>
+            <div style={{width:40,height:40,borderRadius:13,background:"rgba(255,255,255,0.22)",backdropFilter:"blur(10px)",border:"1px solid rgba(255,255,255,0.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:800,color:"#fff",boxShadow:"0 2px 12px rgba(0,0,0,0.15)"}}>
               {userName.charAt(0)||"T"}
             </div>
           </div>
