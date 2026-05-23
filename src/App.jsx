@@ -746,11 +746,83 @@ export default function App(){
       {name:"Facebook Events",url:`https://www.facebook.com/events/search/?q=${eq}`,Icon:Users,color:"#1877F2",desc:"אירועים בפייסבוק"},
       {name:"Timeout",url:`https://www.timeout.com/search?q=${eq}`,Icon:Clock,color:"#FF5A5F",desc:"מה לעשות בעיר"},
     ];
-    return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 40px"}}><style>{css}</style>{toastEl}
+    const THAI_HOLIDAYS=[
+      {date:"2026-01-01",name:"ראש השנה האזרחי",thai:"วันปีใหม่",type:"national",emoji:"🎆",desc:"עסקים סגורים"},
+      {date:"2026-02-22",name:"מאקהה בוצ'ה",thai:"วันมาฆบูชา",type:"buddhist",emoji:"🕯️",desc:"ירח מלא · אסור מכירת אלכוהול"},
+      {date:"2026-04-06",name:"יום צ'קרי",thai:"วันจักรี",type:"national",emoji:"👑",desc:"יום השושלת המלכותית"},
+      {date:"2026-04-13",name:"סונגקראן — יום א׳",thai:"วันสงกรานต์",type:"festival",emoji:"💦",desc:"ראש השנה התאי · מלחמת מים"},
+      {date:"2026-04-14",name:"סונגקראן — יום ב׳",thai:"วันสงกרานต์",type:"festival",emoji:"💦",desc:"חגיגות מרכזיות ברחובות"},
+      {date:"2026-04-15",name:"סונגקראן — יום ג׳",thai:"วันสงกรานต์",type:"festival",emoji:"💦",desc:"יום משפחה · תחיליות"},
+      {date:"2026-05-01",name:"יום העבודה",thai:"วันแรงงาน",type:"national",emoji:"⚒️",desc:"עסקים רבים סגורים"},
+      {date:"2026-05-04",name:"יום ההכתרה",thai:"วันฉัตรมงคล",type:"national",emoji:"👑",desc:"הכתרת המלך ואג'ירלונגקורן"},
+      {date:"2026-05-22",name:"וויסאקהה בוצ'ה",thai:"วันวิสาขบูชา",type:"buddhist",emoji:"🪷",desc:"יום הולדת הבודהה · ירח מלא · אסור אלכוהול"},
+      {date:"2026-06-03",name:"יום הולדת המלכה",thai:"วันเฉลิมพระชนมพรรษาราชินี",type:"national",emoji:"👸",desc:"יום הולדת המלכה סותידה"},
+      {date:"2026-07-20",name:"אסאהנהה בוצ'ה",thai:"วันอาสาฬหบูชา",type:"buddhist",emoji:"🕯️",desc:"הדרשה הראשונה של הבודהה · אסור אלכוהול"},
+      {date:"2026-07-21",name:"כאו פאנסא",thai:"วันเข้าพรรษา",type:"buddhist",emoji:"🧘",desc:"תחילת עונת הצום הבודהיסטי · 3 חודשים"},
+      {date:"2026-07-28",name:"יום הולדת המלך",thai:"วันเฉลิมพระชนมพรรษา ร.10",type:"national",emoji:"👑",desc:"יום הולדת המלך ואג'ירלונגקורן"},
+      {date:"2026-08-12",name:"יום האם הלאומי",thai:"วันแม่แห่งชาติ",type:"national",emoji:"🌺",desc:"יום הולדת המלכה-אם סיריקיט"},
+      {date:"2026-10-13",name:"יום זיכרון למלך בומיבול",thai:"วันนวมินทรมหาราช",type:"national",emoji:"🖤",desc:"יום פטירת המלך רמה ה-9"},
+      {date:"2026-10-19",name:"אוק פאנסא",thai:"วันออกพรรษา",type:"buddhist",emoji:"🏮",desc:"סיום עונת הצום הבודהיסטי"},
+      {date:"2026-10-23",name:"יום צ'ולאלונגקורן",thai:"วันปิยมหาราช",type:"national",emoji:"🌹",desc:"יום פטירת המלך רמה ה-5"},
+      {date:"2026-11-29",name:"לוי קראטונג",thai:"วันลอยกระทง",type:"festival",emoji:"🏮",desc:"פסטיבל סירות הנרות · ירח מלא · יפהפה!"},
+      {date:"2026-12-05",name:"יום האב הלאומי",thai:"วันพ่อแห่งชาติ",type:"national",emoji:"👴",desc:"יום הולדת המלך בומיבול"},
+      {date:"2026-12-10",name:"יום החוקה",thai:"วันรัฐธรรมนูญ",type:"national",emoji:"📜",desc:"יום החוקה התאית"},
+      {date:"2026-12-31",name:"ערב ראש השנה",thai:"วันสิ้นปี",type:"festival",emoji:"🎉",desc:"חגיגות ואירועים ברחבי תאילנד"},
+    ];
+    const today=new Date();today.setHours(0,0,0,0);
+    const typeColor={national:"#1E5BD6",buddhist:"#E17055",festival:"#e84393"};
+    const typeName={national:"לאומי",buddhist:"בודהיסטי",festival:"פסטיבל"};
+    const upcomingIdx=THAI_HOLIDAYS.findIndex(h=>new Date(h.date)>=today);
+    return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 48px"}}><style>{css}</style>{toastEl}
       <div style={{maxWidth:480,margin:"0 auto"}}>
         <button onClick={()=>setScreen("home")} style={BK}><ChevronLeft size={18}/>בית</button>
-        <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 16px",display:"flex",alignItems:"center",gap:8}}><CalendarDays size={22} style={{color:"var(--accent)"}}/>אירועים וחגים</h2>
-        <div style={{...C,marginBottom:20}}>
+        <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 4px",display:"flex",alignItems:"center",gap:8}}><CalendarDays size={22} style={{color:"var(--accent)"}}/>אירועים וחגים</h2>
+        <p style={{fontSize:11,color:"var(--text2)",marginBottom:20}}>תאילנד 2026 · חגים לאומיים, בודהיסטיים ופסטיבלים</p>
+
+        {/* Thailand 2026 holidays list */}
+        <div style={{...C,marginBottom:24,padding:"0 0 4px"}}>
+          <div style={{padding:"16px 18px 12px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:18}}>🇹🇭</span>
+            <div>
+              <div style={{fontWeight:800,fontSize:14,color:"var(--text)"}}>חגים ומועדים בתאילנד 2026</div>
+              <div style={{fontSize:10,color:"var(--text2)",marginTop:1}}>{THAI_HOLIDAYS.filter(h=>new Date(h.date)>=today).length} מועדים קרובים</div>
+            </div>
+            <div style={{marginRight:"auto",display:"flex",gap:6}}>
+              {[["national","לאומי"],["buddhist","בודהיסטי"],["festival","פסטיבל"]].map(([t,l])=>(
+                <span key={t} style={{fontSize:9,padding:"2px 6px",borderRadius:999,background:`${typeColor[t]}18`,color:typeColor[t],fontWeight:700}}>{l}</span>
+              ))}
+            </div>
+          </div>
+          {THAI_HOLIDAYS.map((h,i)=>{
+            const hDate=new Date(h.date);const isPast=hDate<today;const isNext=i===upcomingIdx;
+            const d=hDate.toLocaleDateString("he-IL",{day:"numeric",month:"long"});
+            return(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"11px 18px",borderBottom:i<THAI_HOLIDAYS.length-1?"1px solid var(--border)":"none",opacity:isPast?0.42:1,background:isNext?"rgba(30,91,214,0.04)":"transparent",position:"relative"}}>
+                {isNext&&<div style={{position:"absolute",right:0,top:0,bottom:0,width:3,borderRadius:"0 4px 4px 0",background:"var(--accent)"}}/>}
+                <div style={{fontSize:22,flexShrink:0,width:28,textAlign:"center"}}>{h.emoji}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                    <span style={{fontWeight:700,fontSize:13,color:isPast?"var(--text2)":"var(--text)"}}>{h.name}</span>
+                    {isNext&&<span style={{fontSize:9,padding:"2px 7px",borderRadius:999,background:"var(--accent)",color:"#fff",fontWeight:800}}>הבא</span>}
+                    {isPast&&<span style={{fontSize:9,padding:"2px 6px",borderRadius:999,background:"var(--border)",color:"var(--text2)",fontWeight:600}}>עבר</span>}
+                  </div>
+                  <div style={{fontSize:10,color:"var(--text2)",marginTop:1,display:"flex",gap:6,alignItems:"center"}}>
+                    <span>{h.thai}</span>
+                    <span style={{width:2,height:2,borderRadius:"50%",background:"var(--border)",display:"inline-block"}}/>
+                    <span>{h.desc}</span>
+                  </div>
+                </div>
+                <div style={{flexShrink:0,textAlign:"left"}}>
+                  <div style={{fontSize:11,fontWeight:700,color:isPast?"var(--text2)":typeColor[h.type]}}>{d}</div>
+                  <div style={{fontSize:9,padding:"2px 6px",borderRadius:999,background:`${typeColor[h.type]}18`,color:typeColor[h.type],fontWeight:700,marginTop:3,textAlign:"center"}}>{typeName[h.type]}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:12}}>חיפוש אירועים נוספים</div>
+        <div style={{...C,marginBottom:16}}>
           <label style={L}>מדינה / עיר</label>
           <input style={I} placeholder="לדוגמא: Israel, Thailand, Japan..." value={eventsDest} onChange={e=>setEventsDest(e.target.value)}/>
         </div>
