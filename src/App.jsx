@@ -285,7 +285,6 @@ export default function App(){
         {id:"xe",label:"המרת מטבעות",sub:"שערי חליפין",Icon:ArrowLeftRight,color:"#22A6B3",fn:()=>setScreen("xeScreen")},
         {id:"tr",label:"תרגום",sub:"Google Translate",Icon:Globe,color:"#00B894",fn:()=>setScreen("translateScreen")},
         {id:"disc",label:"גלה יעדים",sub:"חקר את היעד שלך",Icon:Globe2,color:"#E17055",fn:()=>setScreen("discoverScreen")},
-        {id:"sync",label:"סנכרון ענן",sub:"גיבוי Gist",Icon:Settings,color:githubToken?"#00B894":"#7C849C",badge:githubToken?null:"!",fn:()=>setScreen("syncSettings")},
       ]},
       {title:"אפליקציות שימושיות",items:[
         {id:"finance",label:"כספים ועמלות",sub:"שערים ועמלות בנק",Icon:CreditCard,color:"#f0932b",fn:()=>setScreen("financeScreen")},
@@ -987,7 +986,7 @@ export default function App(){
             <button onClick={()=>setMenuOpen(!menuOpen)} style={{background:"none",border:"none",cursor:"pointer",padding:8}}><MoreVertical size={20} color="var(--text2)"/></button>
             {menuOpen&&<><div onClick={()=>setMenuOpen(false)} style={{position:"fixed",top:0,left:0,right:0,bottom:0,zIndex:60}}/><div style={{position:"absolute",top:"100%",right:0,width:230,background:"rgba(20,24,32,0.98)",border:"1px solid var(--border)",borderRadius:18,boxShadow:"0 12px 40px rgba(0,0,0,.6)",zIndex:70,overflow:"hidden",backdropFilter:"blur(30px)",animation:"fadeUp .15s"}}>
               {[{Icon:UserPlus,l:"Add Friend",a:()=>{setSub("addFriend");setMenuOpen(false)}},{Icon:Pencil,l:"Edit Trip",a:()=>{setEditTripForm({name:trip.name,country:trip.country,budget:trip.budget,currency:trip.currency,startDate:trip.startDate,endDate:trip.endDate});setSub("editTrip");setMenuOpen(false)}},{Icon:FileText,l:"Documents",a:()=>{setSub("docs");setMenuOpen(false)}},{Icon:Download,l:"Export CSV",a:()=>{setSub("exportView");setMenuOpen(false)}},{Icon:Share2,l:"Share",a:()=>{setSub("shareView");setMenuOpen(false)}},{Icon:Settings,l:"Settings",a:()=>{setSub("settings");setMenuOpen(false)}}].map(({Icon,l,a},i)=>
-                <button key={i} onClick={a} style={{width:"100%",padding:"14px 18px",background:"none",border:"none",borderTop:i?"1px solid var(--border)":"none",color:"var(--text)",cursor:"pointer",fontFamily:"Inter",fontSize:14,fontWeight:500,textAlign:"left",display:"flex",alignItems:"center",gap:12}}><Icon size={18} color="var(--text2)"/>{l}</button>)}
+                <button key={i} onClick={a} style={{width:"100%",padding:"14px 18px",background:"none",border:"none",borderTop:i?"1px solid var(--border)":"none",color:"#fff",cursor:"pointer",fontFamily:"Heebo,system-ui",fontSize:14,fontWeight:500,textAlign:"left",display:"flex",alignItems:"center",gap:12}}><Icon size={18} color="rgba(255,255,255,0.55)"/>{l}</button>)}
             </div></>}</div></div>
 
         <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:22}}>
