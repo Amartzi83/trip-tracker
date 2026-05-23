@@ -64,6 +64,8 @@ export default function App(){
   const[discoverDest,setDiscoverDest]=useState("");
   const[weatherCity,setWeatherCity]=useState("");
   const[eventsDest,setEventsDest]=useState("");
+  const[pattayaWeather,setPattayaWeather]=useState(null);
+  const[pattayaLoading,setPattayaLoading]=useState(false);
   const[activeTrip,setActiveTrip]=useState(null);
   const[screen,setScreen]=useState("home");
   const[tab,setTab]=useState("entries");
@@ -147,6 +149,12 @@ export default function App(){
 
   useEffect(()=>{(async()=>{try{const r=await fetch("https://open.er-api.com/v6/latest/USD");const d=await r.json();if(d?.rates){setRates(d.rates);setRatesTime(new Date().toLocaleTimeString())}}catch{}})()},[]);
   useEffect(()=>{if(window.speechSynthesis){window.speechSynthesis.getVoices()}},[]);
+  useEffect(()=>{
+    if(screen!=="weatherScreen")return;
+    setPattayaLoading(true);
+    fetch("https://api.open-meteo.com/v1/forecast?latitude=12.9236&longitude=100.8825&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m&timezone=Asia/Bangkok")
+      .then(r=>r.json()).then(d=>{if(d?.current)setPattayaWeather(d.current);}).catch(()=>{}).finally(()=>setPattayaLoading(false));
+  },[screen]);
 
   function cv(a,f,t){if(f===t)return a;return a/(rates[f]||1)*(rates[t]||1)}
   function speak(text,lang){
@@ -616,12 +624,62 @@ export default function App(){
       {name:"Meteoblue",url:`https://www.meteoblue.com/weather/forecast/week/${wq}`,Icon:Globe2,color:"#0097e6",desc:"תחזית ל-14 ימים"},
       {name:"Google Weather",url:`https://www.google.com/search?q=weather+${wq}`,Icon:Globe,color:"#4285F4",desc:"תחזית מהירה בגוגל"},
     ];
+    function wDesc(code){
+      if(code===0)return{desc:"שמיים בהירים",emoji:"☀️"};
+      if(code<=2)return{desc:"בהיר חלקית",emoji:"🌤️"};
+      if(code<=3)return{desc:"מעונן",emoji:"☁️"};
+      if(code<=48)return{desc:"ערפל",emoji:"🌫️"};
+      if(code<=55)return{desc:"טפטוף קל",emoji:"🌦️"};
+      if(code<=65)return{desc:"גשם",emoji:"🌧️"};
+      if(code<=75)return{desc:"שלג",emoji:"🌨️"};
+      if(code<=82)return{desc:"גשמי מקלחות",emoji:"🌦️"};
+      if(code<=95)return{desc:"סופת רעמים",emoji:"⛈️"};
+      return{desc:"סופת רעמים עם ברד",emoji:"⛈️"};
+    }
+    const pw=pattayaWeather;const wd=pw?wDesc(pw.weather_code):{};
     return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 40px"}}><style>{css}</style>{toastEl}
       <div style={{maxWidth:480,margin:"0 auto"}}>
         <button onClick={()=>setScreen("home")} style={BK}><ChevronLeft size={18}/>בית</button>
         <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 16px",display:"flex",alignItems:"center",gap:8}}><Cloud size={22} style={{color:"var(--accent)"}}/>מזג אויר</h2>
+
+        {/* Pattaya live weather card */}
+        <div style={{background:"linear-gradient(135deg,#0984e3,#00b4d8)",borderRadius:22,padding:"20px 22px",marginBottom:20,color:"#fff",position:"relative",overflow:"hidden",boxShadow:"0 8px 28px rgba(9,132,227,.3)"}}>
+          <Sparkle right={16} top={12} size={14} opacity={0.6} color="#fff"/>
+          <Sparkle right={40} top={30} size={8} opacity={0.4} color="#fff"/>
+          <Sparkle left={18} bottom={14} size={10} opacity={0.4} color="#fff"/>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+            <div>
+              <div style={{fontSize:11,opacity:0.85,letterSpacing:"0.06em",marginBottom:4}}>📍 פטאיה, תאילנד · עכשיו</div>
+              {pattayaLoading&&<div style={{fontSize:28,fontWeight:800,opacity:0.6}}>טוען...</div>}
+              {!pattayaLoading&&pw&&<>
+                <div style={{fontSize:52,fontWeight:900,lineHeight:1,letterSpacing:"-2px"}}>{Math.round(pw.temperature_2m)}°<span style={{fontSize:28,fontWeight:500}}>C</span></div>
+                <div style={{fontSize:14,marginTop:6,opacity:0.9,fontWeight:600}}>{wd.emoji} {wd.desc}</div>
+              </>}
+              {!pattayaLoading&&!pw&&<div style={{fontSize:14,opacity:0.75}}>לא ניתן לטעון</div>}
+            </div>
+            {pw&&<div style={{display:"flex",flexDirection:"column",gap:10,alignItems:"flex-end"}}>
+              <div style={{background:"rgba(255,255,255,0.2)",borderRadius:14,padding:"10px 14px",textAlign:"center",backdropFilter:"blur(8px)"}}>
+                <div style={{fontSize:10,opacity:0.8,marginBottom:2}}>מורגש</div>
+                <div style={{fontSize:18,fontWeight:800}}>{Math.round(pw.apparent_temperature)}°</div>
+              </div>
+              <div style={{background:"rgba(255,255,255,0.2)",borderRadius:14,padding:"10px 14px",textAlign:"center",backdropFilter:"blur(8px)"}}>
+                <div style={{fontSize:10,opacity:0.8,marginBottom:2}}>לחות</div>
+                <div style={{fontSize:18,fontWeight:800}}>{pw.relative_humidity_2m}%</div>
+              </div>
+              <div style={{background:"rgba(255,255,255,0.2)",borderRadius:14,padding:"10px 14px",textAlign:"center",backdropFilter:"blur(8px)"}}>
+                <div style={{fontSize:10,opacity:0.8,marginBottom:2}}>רוח</div>
+                <div style={{fontSize:18,fontWeight:800}}>{Math.round(pw.wind_speed_10m)}<span style={{fontSize:10}}>km/h</span></div>
+              </div>
+            </div>}
+          </div>
+          {pw&&<div style={{marginTop:14,paddingTop:12,borderTop:"1px solid rgba(255,255,255,0.2)",display:"flex",gap:16,fontSize:11,opacity:0.8}}>
+            <a href="https://www.windy.com/?12.92,100.88,11" target="_blank" rel="noopener noreferrer" style={{color:"#fff",display:"flex",alignItems:"center",gap:4,textDecoration:"none",fontWeight:600}}>Windy <ExternalLink size={10}/></a>
+            <a href="https://www.timeanddate.com/weather/thailand/pattaya" target="_blank" rel="noopener noreferrer" style={{color:"#fff",display:"flex",alignItems:"center",gap:4,textDecoration:"none",fontWeight:600}}>תחזית מלאה <ExternalLink size={10}/></a>
+          </div>}
+        </div>
+
         <div style={{...C,marginBottom:20}}>
-          <label style={L}>עיר / יעד</label>
+          <label style={L}>חפש עיר אחרת</label>
           <input style={I} placeholder="לדוגמא: Athens, Bangkok, Paris..." value={weatherCity} onChange={e=>setWeatherCity(e.target.value)}/>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
