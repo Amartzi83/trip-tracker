@@ -429,7 +429,6 @@ export default function App(){
                 </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
                   <div style={{fontSize:24,fontWeight:900,color:"var(--accent)",letterSpacing:"-0.8px"}}>{fC(spent,t.currency)}</div>
-                  {perDay>0&&<div style={{fontSize:12,color:"var(--text2)",fontWeight:600}}>{fC(perDay,t.currency)}<span style={{opacity:.5}}> /יום</span></div>}
                 </div>
                 {t.budget>0&&<div style={{marginTop:10}}>
                   <div style={{height:5,borderRadius:3,background:"var(--border)",overflow:"hidden"}}><div style={{height:"100%",borderRadius:3,width:`${pct}%`,background:over?"linear-gradient(90deg,#E63946,#FF6B81)":"linear-gradient(90deg,#1E5BD6,#3FB5E8)"}}/></div>
