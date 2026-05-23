@@ -316,12 +316,11 @@ export default function App(){
         {id:"newTrip",label:"טיול חדש",sub:"הוסף טיול חדש",Icon:Plus,color:"#FF4757",fn:()=>setScreen("addTrip")},
       ]},
       {title:"כלים",items:[
-        {id:"xe",label:"המרת מטבעות",sub:"שערי חליפין",Icon:ArrowLeftRight,color:"#22A6B3",fn:()=>setScreen("xeScreen")},
         {id:"tr",label:"תרגום",sub:"Google Translate",Icon:Globe,color:"#00B894",fn:()=>setScreen("translateScreen")},
         {id:"disc",label:"גלה יעדים",sub:"חקר את היעד שלך",Icon:Globe2,color:"#E17055",fn:()=>setScreen("discoverScreen")},
       ]},
       {title:"אפליקציות שימושיות",items:[
-        {id:"finance",label:"כספים ועמלות",sub:"שערים ועמלות בנק",Icon:CreditCard,color:"#f0932b",fn:()=>setScreen("financeScreen")},
+        {id:"money",label:"כספים ועמלות",sub:"המרה · שערים · עמלות",Icon:Wallet,color:"#f0932b",fn:()=>setScreen("moneyScreen")},
         {id:"events",label:"אירועים וחגים",sub:"לוח אירועים",Icon:CalendarDays,color:"#e84393",fn:()=>setScreen("eventsScreen")},
         {id:"links",label:"קישורים שימושיים",sub:"כל כלי הטיול",Icon:Link2,color:"#6c5ce7",fn:()=>setScreen("linksScreen")},
         {id:"thaiApps",label:"אפליקציות לתאילנד",sub:"Grab · Bolt · Lazada",Icon:Smartphone,color:"#00B14F",fn:()=>setScreen("thaiAppsScreen")},
@@ -409,7 +408,7 @@ export default function App(){
           const usd100=Math.round(100*thb).toLocaleString();
           const ils100=Math.round(100*(thb/ils)).toLocaleString();
           return(
-            <button onClick={()=>setScreen("xeScreen")} style={{width:"100%",marginBottom:18,background:"rgba(255,255,255,0.18)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.28)",borderRadius:18,padding:"12px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:0,boxShadow:"0 4px 16px rgba(0,0,0,0.1)",fontFamily:"Heebo,system-ui"}}>
+            <button onClick={()=>setScreen("moneyScreen")} style={{width:"100%",marginBottom:18,background:"rgba(255,255,255,0.18)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.28)",borderRadius:18,padding:"12px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:0,boxShadow:"0 4px 16px rgba(0,0,0,0.1)",fontFamily:"Heebo,system-ui"}}>
               <div style={{display:"flex",alignItems:"center",gap:8,flex:1}}>
                 <span style={{fontSize:22,flexShrink:0}}>💱</span>
                 <div style={{textAlign:"right"}}>
@@ -558,30 +557,71 @@ export default function App(){
     </div>);
   }
 
-  /* STANDALONE XE */
-  if(screen==="xeScreen"){
+  /* MONEY SCREEN — combined converter + finance */
+  if(screen==="moneyScreen"||screen==="xeScreen"){
     const res=cv(parseFloat(convAmt)||0,convFrom,convTo);const rate=cv(1,convFrom,convTo);
-    return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 40px"}}><style>{css}</style>{toastEl}
+    const FLINKS=[
+      {name:"XE.com",url:"https://www.xe.com/currencyconverter/",Icon:ArrowLeftRight,color:"#F9CA24",desc:"שערי מטבע בזמן אמת"},
+      {name:"Wise",url:"https://wise.com/gb/currency-converter/",Icon:TrendingUp,color:"#37A94E",desc:"העברות בשיעור הטוב ביותר"},
+      {name:"בנק ישראל",url:"https://www.boi.org.il/en/markets-and-statistics/exchange-rates/",Icon:Landmark,color:"#0097e6",desc:"שערי מטבע רשמיים"},
+      {name:"Mastercard FX",url:"https://www.mastercard.us/en-us/personal/get-support/convert-currency.html",Icon:CreditCard,color:"#EB001B",desc:"מחשבון עמלות Mastercard"},
+      {name:"Visa FX",url:"https://usa.visa.com/support/consumer/travel-support/exchange-rate-calculator.html",Icon:CreditCard,color:"#1A1F71",desc:"מחשבון עמלות Visa"},
+      {name:"Bloomberg FX",url:"https://www.bloomberg.com/markets/currencies",Icon:DollarSign,color:"#FF6600",desc:"שוק המטבעות העולמי"},
+    ];
+    return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 48px"}}><style>{css}</style>{toastEl}
       <div style={{maxWidth:480,margin:"0 auto"}}>
         <button onClick={()=>setScreen("home")} style={BK}><ChevronLeft size={18}/>בית</button>
-        <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 22px",display:"flex",alignItems:"center",gap:8}}><ArrowLeftRight size={22} style={{color:"var(--accent)"}}/>המרת מטבעות</h2>
-        <div style={{...C,marginBottom:16}}>
-          <input style={{...I,fontSize:30,fontWeight:800,textAlign:"center",marginBottom:16,background:"transparent"}} type="number" step="0.01" value={convAmt} onChange={e=>setConvAmt(e.target.value)}/>
-          <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:16}}>
+        <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 4px",display:"flex",alignItems:"center",gap:8}}><Wallet size={22} style={{color:"#f0932b"}}/>כספים ועמלות</h2>
+        <p style={{fontSize:11,color:"var(--text2)",marginBottom:18}}>המרת מטבעות · שערים חיים · עמלות בנקים</p>
+
+        {/* Converter */}
+        <div style={{...C,marginBottom:14}}>
+          <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:12}}>מחשבון המרה</div>
+          <input style={{...I,fontSize:30,fontWeight:800,textAlign:"center",marginBottom:14,background:"transparent"}} type="number" step="0.01" value={convAmt} onChange={e=>setConvAmt(e.target.value)}/>
+          <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:14}}>
             <div style={{flex:1}}><select style={I} value={convFrom} onChange={e=>setConvFrom(e.target.value)}>{CURRS.map(c=><option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}</select></div>
             <button onClick={()=>{setConvFrom(convTo);setConvTo(convFrom)}} style={{width:40,height:40,borderRadius:14,border:"1px solid var(--border)",background:"var(--card)",color:"var(--accent)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><ArrowLeftRight size={18}/></button>
             <div style={{flex:1}}><select style={I} value={convTo} onChange={e=>setConvTo(e.target.value)}>{CURRS.map(c=><option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}</select></div>
           </div>
-          <div style={{background:"var(--bg)",borderRadius:16,padding:20,textAlign:"center",border:"1px solid var(--border)"}}>
-            <div style={{fontSize:34,fontWeight:800,color:"var(--accent)",letterSpacing:"-1px"}}>{fC(res,convTo)}</div>
+          <div style={{background:"var(--bg)",borderRadius:16,padding:"18px 20px",textAlign:"center",border:"1px solid var(--border)"}}>
+            <div style={{fontSize:36,fontWeight:900,color:"#f0932b",letterSpacing:"-1px"}}>{fC(res,convTo)}</div>
             <div style={{fontSize:12,color:"var(--text2)",marginTop:6}}>1 {convFrom} = {rate.toFixed(4)} {convTo}</div>
           </div>
           {ratesTime&&<div style={{fontSize:11,color:"var(--accent)",textAlign:"center",marginTop:10,fontWeight:600}}>✓ Live · {ratesTime}</div>}
         </div>
-        <div style={C}><div style={{...L,marginBottom:12}}>Quick Rates</div>
-          {CURRS.filter(c=>c.code!==convFrom).slice(0,8).map(c=>{const r=cv(1,convFrom,c.code);return(
-            <div key={c.code} onClick={()=>setConvTo(c.code)} style={{display:"flex",justifyContent:"space-between",padding:"9px 0",borderBottom:"1px solid var(--border)",cursor:"pointer",fontSize:13}}>
-              <span style={{fontWeight:500}}>{c.symbol} {c.code}</span><span style={{fontWeight:700}}>{r.toFixed(c.code==="JPY"?2:4)}</span></div>)})}
+
+        {/* Quick Rates */}
+        <div style={{...C,marginBottom:20}}>
+          <div style={{...L,marginBottom:10}}>שערים מהירים מ-{convFrom}</div>
+          {CURRS.filter(c=>c.code!==convFrom).map(c=>{const r=cv(1,convFrom,c.code);return(
+            <div key={c.code} onClick={()=>setConvTo(c.code)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:"1px solid var(--border)",cursor:"pointer",fontSize:13}}>
+              <span style={{fontWeight:600,color:convTo===c.code?"var(--accent)":"var(--text)"}}>{c.symbol} {c.code} <span style={{fontWeight:400,color:"var(--text2)",fontSize:11}}>{c.name}</span></span>
+              <span style={{fontWeight:800,color:convTo===c.code?"var(--accent)":"var(--text)"}}>{r.toFixed(c.code==="JPY"?2:4)}</span>
+            </div>)})}
+        </div>
+
+        {/* Bank fees */}
+        <div style={{...C,marginBottom:16,background:"rgba(249,202,36,.06)",borderColor:"rgba(249,202,36,.3)"}}>
+          <div style={{fontSize:13,fontWeight:800,color:"#c8991a",marginBottom:12}}>💳 עמלות בנקים ישראלים בחו"ל</div>
+          {[["כרטיס אשראי רגיל","1.5–2% על עסקה"],["כרטיס פוקוס / מקס","~0.5–1%"],["כרטיס Wise","~0% עד מכסה חינמית"],['משיכת מזומן בחו"ל',"30–60 ₪ + ~1.5%"],["חיוב בש\"ח בחו\"ל (DCC)","הימנע! — שער גרוע"]].map(([k,v],i)=>(
+            <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderTop:i?"1px solid var(--border)":"none",fontSize:12}}>
+              <span style={{color:"var(--text2)"}}>{k}</span><span style={{fontWeight:700,color:"var(--text)"}}>{v}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Finance links */}
+        <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:12}}>כלי שערי מטבע</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          {FLINKS.map(({name,url,Icon,color,desc},i)=>(
+            <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+              style={{...C,padding:"16px 14px",textDecoration:"none",display:"flex",flexDirection:"column",gap:8,borderColor:`${color}22`}}>
+              <div style={{width:40,height:40,borderRadius:13,background:`${color}22`,display:"flex",alignItems:"center",justifyContent:"center"}}><Icon size={20} color={color}/></div>
+              <div style={{fontWeight:700,fontSize:13,color:"var(--text)"}}>{name}</div>
+              <div style={{fontSize:10,color:"var(--text2)",lineHeight:1.4}}>{desc}</div>
+              <div style={{display:"flex",alignItems:"center",gap:3,fontSize:10,color,fontWeight:600}}>פתח <ExternalLink size={10}/></div>
+            </a>
+          ))}
         </div>
       </div>
     </div>);
@@ -671,44 +711,6 @@ export default function App(){
     </div>);
   }
 
-  /* FINANCE SCREEN */
-  if(screen==="financeScreen"){
-    const FLINKS=[
-      {name:"XE.com",url:"https://www.xe.com/currencyconverter/",Icon:ArrowLeftRight,color:"#F9CA24",desc:"שערי מטבע בזמן אמת"},
-      {name:"Wise",url:"https://wise.com/gb/currency-converter/",Icon:TrendingUp,color:"#37A94E",desc:"העברות בשיעור הטוב ביותר"},
-      {name:"בנק ישראל",url:"https://www.boi.org.il/en/markets-and-statistics/exchange-rates/",Icon:Landmark,color:"#0097e6",desc:"שערי מטבע רשמיים"},
-      {name:"Mastercard FX",url:"https://www.mastercard.us/en-us/personal/get-support/convert-currency.html",Icon:CreditCard,color:"#EB001B",desc:"מחשבון עמלות Mastercard"},
-      {name:"Visa FX",url:"https://usa.visa.com/support/consumer/travel-support/exchange-rate-calculator.html",Icon:CreditCard,color:"#1A1F71",desc:"מחשבון עמלות Visa"},
-      {name:"Bloomberg FX",url:"https://www.bloomberg.com/markets/currencies",Icon:DollarSign,color:"#FF6600",desc:"שוק המטבעות העולמי"},
-    ];
-    return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 48px"}}><style>{css}</style>{toastEl}
-      <div style={{maxWidth:480,margin:"0 auto"}}>
-        <button onClick={()=>setScreen("home")} style={BK}><ChevronLeft size={18}/>בית</button>
-        <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 4px",display:"flex",alignItems:"center",gap:8}}><CreditCard size={22} style={{color:"var(--accent)"}}/>כספים ועמלות</h2>
-        <p style={{fontSize:11,color:"var(--text2)",marginBottom:20}}>שערי מטבע · עמלות בנק · כלי כספים</p>
-        <div style={{...C,marginBottom:20,background:"rgba(249,202,36,.07)",borderColor:"rgba(249,202,36,.25)"}}>
-          <div style={{fontSize:13,fontWeight:700,color:"#F9CA24",marginBottom:12}}>💳 עמלות בנקים ישראלים</div>
-          {[["כרטיס אשראי רגיל","1.5–2% על עסקה"],["כרטיס פוקוס / מקס","~0.5–1%"],["כרטיס Wise","~0% עד מכסה חינמית"],['משיכת מזומן בחו"ל',"30–60 ₪ + ~1.5%"],["חיוב בש\"ח בחו\"ל (DCC)","הימנע — שער גרוע"]].map(([k,v],i)=>(
-            <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderTop:i?"1px solid var(--border)":"none",fontSize:12}}>
-              <span style={{color:"var(--text2)"}}>{k}</span><span style={{fontWeight:700,color:"var(--text)"}}>{v}</span>
-            </div>
-          ))}
-        </div>
-        <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:12}}>כלי שערי מטבע</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-          {FLINKS.map(({name,url,Icon,color,desc},i)=>(
-            <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-              style={{...C,padding:"16px 14px",textDecoration:"none",display:"flex",flexDirection:"column",gap:8,borderColor:`${color}22`}}>
-              <div style={{width:40,height:40,borderRadius:13,background:`${color}22`,display:"flex",alignItems:"center",justifyContent:"center"}}><Icon size={20} color={color}/></div>
-              <div style={{fontWeight:700,fontSize:13,color:"var(--text)"}}>{name}</div>
-              <div style={{fontSize:10,color:"var(--text2)",lineHeight:1.4}}>{desc}</div>
-              <div style={{display:"flex",alignItems:"center",gap:3,fontSize:10,color,fontWeight:600}}>פתח <ExternalLink size={10}/></div>
-            </a>
-          ))}
-        </div>
-      </div>
-    </div>);
-  }
 
   /* WEATHER SCREEN */
   if(screen==="weatherScreen"){
