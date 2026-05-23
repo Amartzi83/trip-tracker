@@ -906,7 +906,7 @@ export default function App(){
       {cat:"🚗 תחבורה",sub:"הזמנת רכב, מוניות ואופנועים",color:"#00B14F",items:[
         {name:"Grab",domain:"grab.com",url:"https://www.grab.com/th/",color:"#00B14F",desc:"הכי פופולרי · מוניות, GrabBike, GrabFood"},
         {name:"Bolt",domain:"bolt.eu",url:"https://bolt.eu/en-th/",color:"#2AE07A",desc:"זול ב-10–20% מ-Grab · תוצאות מהירות"},
-        {name:"Tada",domain:"tada.global",url:"https://tada.global/",icon:"🟡",color:"#F5A623",desc:"ללא עמלות לנהגים · מחיר הוגן יותר"},
+        {name:"Tada",domain:"tada.global",url:"https://tada.global/passenger",color:"#F5A623",desc:"ללא עמלות לנהגים · מחיר הוגן יותר"},
         {name:"inDrive",domain:"indrive.com",url:"https://indrive.com/en/home/",color:"#41B658",desc:"מתמקחים על המחיר ישירות עם הנהג"},
       ]},
       {cat:"🍜 אוכל ומשלוחים",sub:"משלוחים הביתה ומסעדות",color:"#FF4B4B",items:[
@@ -917,7 +917,7 @@ export default function App(){
         {name:"Hungry Hub",domain:"hungryhub.com",url:"https://www.hungryhub.com/",color:"#FF4B4B",desc:"מסעדות פרימיום · BAF וסטים קבועים"},
       ]},
       {cat:"💆 בריאות וספא",sub:"עיסויים, ספא, קליניקות ושיניים",color:"#9B59B6",items:[
-        {name:"GoWobi",domain:"gowobi.com",url:"https://www.gowobi.com/",icon:"🌸",color:"#C0399A",desc:"הזמנת ספא ועיסויים · ביקורות + דילים"},
+        {name:"GoWobi",domain:"gowobi.com",url:"https://www.gowobi.com/",color:"#C0399A",desc:"הזמנת ספא ועיסויים · ביקורות + דילים"},
         {name:"HDmall",domain:"hdmall.co.th",url:"https://hdmall.co.th/",color:"#00BCD4",desc:"ספא, שיניים וקליניקות · חיסכון עד 70%"},
       ]},
       {cat:"🛒 קניות",sub:"שופינג אונליין עד הדלת",color:"#F57224",items:[
@@ -936,10 +936,14 @@ export default function App(){
       ]},
     ];
     function AppLogo({domain,color,name,icon}){
+      const[imgSrc,setImgSrc]=useState(`https://logo.clearbit.com/${domain}`);
       const[err,setErr]=useState(false);
       if(icon)return(<div style={{width:44,height:44,borderRadius:14,background:`${color}18`,border:`1px solid ${color}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24}}>{icon}</div>);
-      if(err)return(<div style={{width:44,height:44,borderRadius:14,background:`${color}22`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:17,color}}>{name[0]}</div>);
-      return(<img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=128`} onError={()=>setErr(true)} style={{width:44,height:44,borderRadius:14,objectFit:"contain",background:"#fff",border:"1px solid var(--border)",padding:5}} alt={name}/>);
+      if(err)return(<div style={{width:44,height:44,borderRadius:14,background:`${color}22`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:18,color}}>{name[0]}</div>);
+      return(<img src={imgSrc} onError={()=>{
+        if(imgSrc.includes('clearbit'))setImgSrc(`https://www.google.com/s2/favicons?domain=${domain}&sz=128`);
+        else setErr(true);
+      }} style={{width:44,height:44,borderRadius:14,objectFit:"contain",background:"#fff",border:"1px solid var(--border)",padding:4}} alt={name}/>);
     }
     return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 48px"}}><style>{css}</style>{toastEl}
       <div style={{maxWidth:480,margin:"0 auto"}}>
