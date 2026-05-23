@@ -402,26 +402,33 @@ export default function App(){
           );
         })()}
 
-        {/* USD → THB rate widget */}
+        {/* Rate widget — glass style like weather */}
         {(()=>{
           const thb=rates['THB']||35.71;
-          const val=Math.round(100*thb).toLocaleString();
-          const rate=thb.toFixed(2);
+          const ils=rates['ILS']||3.704;
+          const usd100=Math.round(100*thb).toLocaleString();
+          const ils100=Math.round(100*(thb/ils)).toLocaleString();
           return(
-            <button onClick={()=>setScreen("xeScreen")} style={{width:"100%",marginBottom:18,background:"var(--card)",borderRadius:18,padding:"12px 16px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:"var(--shadow)",border:"1px solid var(--border)",fontFamily:"Heebo,system-ui"}}>
-              <div style={{display:"flex",alignItems:"center",gap:10}}>
-                <div style={{width:40,height:40,borderRadius:13,background:"linear-gradient(135deg,#F5B53E,#f0932b)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>💵</div>
+            <button onClick={()=>setScreen("xeScreen")} style={{width:"100%",marginBottom:18,background:"rgba(255,255,255,0.18)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.28)",borderRadius:18,padding:"12px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:0,boxShadow:"0 4px 16px rgba(0,0,0,0.1)",fontFamily:"Heebo,system-ui"}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,flex:1}}>
+                <span style={{fontSize:22,flexShrink:0}}>💱</span>
                 <div style={{textAlign:"right"}}>
-                  <div style={{fontSize:11,color:"var(--text2)",fontWeight:500,marginBottom:1}}>שער המרה עדכני</div>
-                  <div style={{fontSize:13,color:"var(--text)",fontWeight:700}}>1 USD = <span style={{color:"#f0932b"}}>{rate} ฿</span></div>
+                  <div style={{fontSize:10,color:"rgba(255,255,255,0.8)",fontWeight:600,marginBottom:2}}>שער המרה עדכני</div>
+                  <div style={{fontSize:10,color:"rgba(255,255,255,0.7)"}}>1 USD = {(thb).toFixed(1)} ฿ &nbsp;·&nbsp; 1 ₪ = {(thb/ils).toFixed(1)} ฿</div>
                 </div>
               </div>
-              <div style={{textAlign:"left",display:"flex",alignItems:"center",gap:8}}>
-                <div>
-                  <div style={{fontSize:11,color:"var(--text2)",fontWeight:500}}>100 דולר</div>
-                  <div style={{fontSize:20,fontWeight:900,color:"var(--text)",letterSpacing:"-0.5px"}}>{val} <span style={{fontSize:13,color:"#f0932b",fontWeight:700}}>฿</span></div>
+              <div style={{width:1,height:36,background:"rgba(255,255,255,0.25)",margin:"0 12px",flexShrink:0}}/>
+              <div style={{display:"flex",gap:14,alignItems:"center"}}>
+                <div style={{textAlign:"center"}}>
+                  <div style={{fontSize:9,color:"rgba(255,255,255,0.75)",marginBottom:1}}>100 $</div>
+                  <div style={{fontSize:16,fontWeight:900,color:"#fff",letterSpacing:"-0.5px"}}>{usd100}<span style={{fontSize:10,fontWeight:600}}>฿</span></div>
                 </div>
-                <ChevronRight size={14} color="var(--text2)"/>
+                <div style={{width:1,height:28,background:"rgba(255,255,255,0.2)",flexShrink:0}}/>
+                <div style={{textAlign:"center"}}>
+                  <div style={{fontSize:9,color:"rgba(255,255,255,0.75)",marginBottom:1}}>100 ₪</div>
+                  <div style={{fontSize:16,fontWeight:900,color:"#fff",letterSpacing:"-0.5px"}}>{ils100}<span style={{fontSize:10,fontWeight:600}}>฿</span></div>
+                </div>
+                <ChevronRight size={13} color="rgba(255,255,255,0.6)"/>
               </div>
             </button>
           );
