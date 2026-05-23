@@ -122,6 +122,32 @@ export default function App(){
     setTimeout(()=>setSyncStatus(''),3000);
   }
 
+  // ── Browser back-button support ──
+  const historyReady=useRef(false);
+  useEffect(()=>{
+    // Set initial history state so back button has somewhere to go within the app
+    window.history.replaceState({screen:"home",activeTrip:null,tab:"entries",sub:null},'');
+    historyReady.current=true;
+    function onPop(e){
+      const s=e.state;
+      if(!s)return;
+      setScreen(s.screen||"home");
+      setActiveTrip(s.activeTrip??null);
+      setTab(s.tab||"entries");
+      setSub(s.sub??null);
+    }
+    window.addEventListener('popstate',onPop);
+    return()=>window.removeEventListener('popstate',onPop);
+  },[]);
+  // Push a new history entry every time screen changes (after mount)
+  const prevScreenRef=useRef("home");
+  useEffect(()=>{
+    if(!historyReady.current)return;
+    if(screen===prevScreenRef.current)return;
+    prevScreenRef.current=screen;
+    window.history.pushState({screen,activeTrip,tab,sub},'',window.location.pathname+window.location.search);
+  },[screen]);
+
   // ── Load from Gist on mount (or fall back to localStorage) ──
   useEffect(()=>{
     (async()=>{
