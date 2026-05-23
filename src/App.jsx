@@ -225,31 +225,39 @@ export default function App(){
   /* ═══════ STYLES ═══════ */
   const COUNTRY_GRADIENTS={"Greece":"linear-gradient(135deg,#0D5EAF,#009FDB)","India":"linear-gradient(135deg,#FF9933,#128807)","Thailand":"linear-gradient(135deg,#ED1C24,#241D4F)","Japan":"linear-gradient(135deg,#BC002D,#FFFFFF22)","Italy":"linear-gradient(135deg,#009246,#CE2B37)","Spain":"linear-gradient(135deg,#AA151B,#F1BF00)","France":"linear-gradient(135deg,#002395,#ED2939)","Turkey":"linear-gradient(135deg,#E30A17,#FFFFFF22)","Israel":"linear-gradient(135deg,#0038B8,#FFFFFF22)","UK":"linear-gradient(135deg,#00247D,#CF142B)","Germany":"linear-gradient(135deg,#000000,#DD0000)","USA":"linear-gradient(135deg,#3C3B6E,#B22234)","Portugal":"linear-gradient(135deg,#006600,#FF0000)","Netherlands":"linear-gradient(135deg,#AE1C28,#21468B)","Vietnam":"linear-gradient(135deg,#DA251D,#FFCD00)","Australia":"linear-gradient(135deg,#002868,#FFFFFF22)","Canada":"linear-gradient(135deg,#FF0000,#FFFFFF22)","Morocco":"linear-gradient(135deg,#C1272D,#006233)","Croatia":"linear-gradient(135deg,#FF0000,#171796)","Switzerland":"linear-gradient(135deg,#FF0000,#FFFFFF22)"};
   function getCountryGrad(c){return COUNTRY_GRADIENTS[c]||"linear-gradient(135deg,#1a1a3e,#0f2027)"}
-  const css=`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-    :root{--bg:#05060B;--surface:#0C0E15;--card:rgba(255,255,255,0.035);--card2:rgba(255,255,255,0.06);--border:rgba(255,255,255,0.06);--text:#F2F3F7;--text2:rgba(255,255,255,0.4);--accent:#00E5A0;--red:#FF4757;--blue:#5B7FFF;--gold:#FFD700}
-    *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}input,select,textarea,button{font-family:'Inter',sans-serif}
+  const css=`@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap');
+    :root{--bg:#F4F7FE;--surface:#FFFFFF;--card:#FFFFFF;--card2:#F4F7FE;--border:#E8ECF7;--text:#1B2547;--text2:#7C849C;--accent:#1E5BD6;--red:#E63946;--blue:#3FB5E8;--gold:#F5B53E;--shadow:0 4px 16px rgba(40,60,140,0.06),0 1px 3px rgba(40,60,140,0.04);--shadow-lg:0 8px 24px rgba(40,60,140,0.10),0 2px 6px rgba(40,60,140,0.06)}
+    *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Heebo',system-ui,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}input,select,textarea,button{font-family:'Heebo',system-ui,sans-serif}
     @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
     @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
-    @keyframes glow{0%,100%{box-shadow:0 0 20px rgba(0,229,160,.15)}50%{box-shadow:0 0 40px rgba(0,229,160,.3)}}
-    ::selection{background:var(--accent);color:#000}`;
-  const I={width:"100%",padding:"14px 16px",borderRadius:14,border:"1px solid var(--border)",background:"rgba(255,255,255,0.035)",color:"var(--text)",fontSize:15,outline:"none",transition:"border-color .2s"};
-  const B1={width:"100%",padding:"16px",borderRadius:16,border:"none",background:"linear-gradient(135deg,#00E5A0,#00C9DB)",color:"#000",fontSize:15,fontWeight:800,cursor:"pointer",fontFamily:"Inter",letterSpacing:"-0.3px",boxShadow:"0 4px 24px rgba(0,229,160,.2)"};
-  const B2={...B1,background:"var(--card2)",color:"var(--text)",border:"1px solid var(--border)",boxShadow:"none"};
-  const C={background:"var(--card)",borderRadius:22,padding:20,border:"1px solid var(--border)",backdropFilter:"blur(20px)"};
+    @keyframes glow{0%,100%{box-shadow:0 0 20px rgba(30,91,214,.15)}50%{box-shadow:0 0 40px rgba(30,91,214,.3)}}
+    ::selection{background:var(--accent);color:#fff}`;
+  const I={width:"100%",padding:"14px 16px",borderRadius:14,border:"1.5px solid var(--border)",background:"#FFFFFF",color:"var(--text)",fontSize:15,outline:"none",transition:"border-color .2s"};
+  const B1={width:"100%",padding:"16px",borderRadius:16,border:"none",background:"linear-gradient(135deg,#1E5BD6,#163FA5)",color:"#fff",fontSize:15,fontWeight:800,cursor:"pointer",fontFamily:"Heebo,system-ui",letterSpacing:"-0.3px",boxShadow:"0 4px 24px rgba(30,91,214,.25)"};
+  const B2={...B1,background:"#FFFFFF",color:"var(--text)",border:"1.5px solid var(--border)",boxShadow:"var(--shadow)"};
+  const C={background:"var(--card)",borderRadius:22,padding:20,border:"1px solid var(--border)",boxShadow:"var(--shadow)"};
   const L={fontSize:10,color:"var(--text2)",marginBottom:8,display:"block",textTransform:"uppercase",letterSpacing:"1.5px",fontWeight:700};
-  const BK={background:"none",border:"none",color:"var(--accent)",fontSize:14,cursor:"pointer",fontFamily:"Inter",fontWeight:700,display:"flex",alignItems:"center",gap:4};
-  const toastEl=toast?<div style={{position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",background:"linear-gradient(135deg,#00E5A0,#00C9DB)",color:"#000",padding:"12px 28px",borderRadius:50,fontWeight:800,fontSize:13,zIndex:999,boxShadow:"0 8px 32px rgba(0,229,160,.3)"}}>{toast}</div>:null;
+  const BK={background:"none",border:"none",color:"var(--accent)",fontSize:14,cursor:"pointer",fontFamily:"Heebo,system-ui",fontWeight:700,display:"flex",alignItems:"center",gap:4};
+  const toastEl=toast?<div style={{position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",background:"linear-gradient(135deg,#1E5BD6,#163FA5)",color:"#fff",padding:"12px 28px",borderRadius:50,fontWeight:800,fontSize:13,zIndex:999,boxShadow:"0 8px 32px rgba(30,91,214,.3)"}}>{toast}</div>:null;
 
   /* ═══════ TAB BAR ═══════ */
   function TabBar(){
-    const tabs=[{id:"entries",Icon:Receipt,l:"Entries"},{id:"stats",Icon:TrendingUp,l:"Stats"},{id:"xe",Icon:ArrowLeftRight,l:"XE"},{id:"translate",Icon:Globe,l:"Translate"},{id:"discover",Icon:Globe2,l:"Discover"}];
-    return(<div style={{position:"fixed",bottom:0,left:0,right:0,background:"rgba(5,6,11,0.92)",backdropFilter:"blur(24px) saturate(180%)",borderTop:"1px solid rgba(255,255,255,0.04)",display:"flex",zIndex:50,paddingBottom:"env(safe-area-inset-bottom)"}}>
-      {tabs.map(({id,Icon,l})=><button key={id} onClick={()=>{setTab(id);setSub(null)}} style={{flex:1,padding:"10px 0 8px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,color:tab===id?"var(--accent)":"var(--text2)",transition:"all .2s",position:"relative"}}>
-        {tab===id&&<div style={{position:"absolute",top:0,left:"50%",transform:"translateX(-50%)",width:24,height:2,borderRadius:1,background:"var(--accent)"}}/>}
-        <Icon size={20} strokeWidth={tab===id?2.5:1.5}/><span style={{fontSize:9,fontWeight:tab===id?800:500,letterSpacing:"0.5px"}}>{l}</span>
+    const tabs=[{id:"entries",Icon:Receipt,l:"הוצאות"},{id:"stats",Icon:TrendingUp,l:"סטטיסטיקה"},{id:"xe",Icon:ArrowLeftRight,l:"המרה"},{id:"translate",Icon:Globe,l:"תרגום"},{id:"discover",Icon:Globe2,l:"גלה"}];
+    return(<div style={{position:"fixed",bottom:0,left:0,right:0,background:"#FFFFFF",borderTop:"1px solid var(--border)",display:"flex",zIndex:50,paddingBottom:"env(safe-area-inset-bottom)",boxShadow:"0 -2px 12px rgba(40,60,140,0.05)"}}>
+      {tabs.map(({id,Icon,l})=><button key={id} onClick={()=>{setTab(id);setSub(null)}} style={{flex:1,padding:"10px 0 8px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,color:tab===id?"#1E5BD6":"#A8AEC0",transition:"all .2s"}}>
+        <Icon size={20} strokeWidth={tab===id?2.5:1.5}/><span style={{fontSize:9,fontWeight:tab===id?800:500,letterSpacing:"0.3px"}}>{l}</span>
       </button>)}
     </div>);
+  }
+
+  /* ═══════ SPARKLE ═══════ */
+  function Sparkle({size=10,top,left,right,bottom,opacity=0.55,color}){
+    return(<svg width={size} height={size} viewBox="0 0 16 16" style={{position:"absolute",top,left,right,bottom,opacity,pointerEvents:"none"}}><path d="M8 0 C8.5 6 10 7.5 16 8 C10 8.5 8.5 10 8 16 C7.5 10 6 8.5 0 8 C6 7.5 7.5 6 8 0 Z" fill={color||"#B8C5E8"}/></svg>);
+  }
+  function SparkleBg(){
+    const stars=[[22,130,14,0.5],[310,90,10,0.4],[160,200,8,0.45],[80,280,12,0.4],[340,340,14,0.5],[50,440,10,0.4],[280,480,16,0.45],[180,560,8,0.4],[30,640,12,0.45],[350,700,10,0.4],[110,760,14,0.5]];
+    return(<div style={{position:"absolute",top:0,left:0,right:0,bottom:0,pointerEvents:"none",overflow:"hidden"}}>{stars.map((s,i)=><Sparkle key={i} left={s[0]} top={s[1]} size={s[2]} opacity={s[3]}/>)}</div>);
   }
 
   /* ═══════ EXPENSE ROW ═══════ */
@@ -266,52 +274,112 @@ export default function App(){
   }
 
   /* ═══════════════════════════════════════════ */
-  /* HOME — grid dashboard */
+  /* HOME — Sparkle grid dashboard */
   if(screen==="home"){
     const SECS=[
       {title:"טיולים",items:[
-        {id:"myTrips",label:"הטיולים שלי",Icon:Plane,grad:"linear-gradient(135deg,#686DE0,#4834d4)",badge:trips.length||null,fn:()=>setScreen("myTrips")},
-        {id:"newTrip",label:"טיול חדש",Icon:Plus,grad:"linear-gradient(135deg,#FF4757,#c44569)",fn:()=>setScreen("addTrip")},
+        {id:"myTrips",label:"הטיולים שלי",sub:"כל הטיולים שלך",Icon:Plane,color:"#686DE0",badge:trips.length||null,fn:()=>setScreen("myTrips")},
+        {id:"newTrip",label:"טיול חדש",sub:"הוסף טיול חדש",Icon:Plus,color:"#FF4757",fn:()=>setScreen("addTrip")},
       ]},
       {title:"כלים",items:[
-        {id:"xe",label:"המרת מטבעות",Icon:ArrowLeftRight,grad:"linear-gradient(135deg,#22A6B3,#0097e6)",fn:()=>setScreen("xeScreen")},
-        {id:"tr",label:"תרגום",Icon:Globe,grad:"linear-gradient(135deg,#00B894,#1abc9c)",fn:()=>setScreen("translateScreen")},
-        {id:"disc",label:"גלה יעדים",Icon:Globe2,grad:"linear-gradient(135deg,#E17055,#d35400)",fn:()=>setScreen("discoverScreen")},
-        {id:"sync",label:"הגדרות סנכרון",Icon:Settings,grad:githubToken?"linear-gradient(135deg,#00E5A0,#00B894)":"linear-gradient(135deg,#636e72,#2d3436)",badge:githubToken?null:"!",fn:()=>setScreen("syncSettings")},
+        {id:"xe",label:"המרת מטבעות",sub:"שערי חליפין",Icon:ArrowLeftRight,color:"#22A6B3",fn:()=>setScreen("xeScreen")},
+        {id:"tr",label:"תרגום",sub:"Google Translate",Icon:Globe,color:"#00B894",fn:()=>setScreen("translateScreen")},
+        {id:"disc",label:"גלה יעדים",sub:"חקר את היעד שלך",Icon:Globe2,color:"#E17055",fn:()=>setScreen("discoverScreen")},
+        {id:"sync",label:"סנכרון ענן",sub:"גיבוי Gist",Icon:Settings,color:githubToken?"#00B894":"#7C849C",badge:githubToken?null:"!",fn:()=>setScreen("syncSettings")},
       ]},
       {title:"אפליקציות שימושיות",items:[
-        {id:"finance",label:"כספים ועמלות",Icon:CreditCard,grad:"linear-gradient(135deg,#F9CA24,#f0932b)",fn:()=>setScreen("financeScreen")},
-        {id:"weather",label:"מזג אויר",Icon:Cloud,grad:"linear-gradient(135deg,#74b9ff,#0984e3)",fn:()=>setScreen("weatherScreen")},
-        {id:"events",label:"אירועים וחגים",Icon:CalendarDays,grad:"linear-gradient(135deg,#fd79a8,#e84393)",fn:()=>setScreen("eventsScreen")},
-        {id:"links",label:"קישורים שימושיים",Icon:Link2,grad:"linear-gradient(135deg,#a29bfe,#6c5ce7)",fn:()=>setScreen("linksScreen")},
+        {id:"finance",label:"כספים ועמלות",sub:"שערים ועמלות בנק",Icon:CreditCard,color:"#f0932b",fn:()=>setScreen("financeScreen")},
+        {id:"weather",label:"מזג אויר",sub:"תחזית ותנאים",Icon:Cloud,color:"#0984e3",fn:()=>setScreen("weatherScreen")},
+        {id:"events",label:"אירועים וחגים",sub:"לוח אירועים",Icon:CalendarDays,color:"#e84393",fn:()=>setScreen("eventsScreen")},
+        {id:"links",label:"קישורים שימושיים",sub:"כל כלי הטיול",Icon:Link2,color:"#6c5ce7",fn:()=>setScreen("linksScreen")},
       ]},
     ];
-    return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"28px 16px 48px"}}><style>{css}</style>{toastEl}
-      <div style={{maxWidth:480,margin:"0 auto"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:36}}>
+    const heroTrip=trips.length>0?trips[trips.length-1]:null;
+    return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"0 0 48px",position:"relative",overflow:"hidden"}}><style>{css}</style>{toastEl}
+      <SparkleBg/>
+      <div style={{maxWidth:480,margin:"0 auto",padding:"0 16px",position:"relative"}}>
+        {/* Header */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"54px 0 20px"}}>
           <div>
-            <div style={{fontSize:10,color:"var(--text2)",fontWeight:700,letterSpacing:"2px",marginBottom:6,textTransform:"uppercase"}}>ברוך הבא</div>
+            <div style={{fontSize:13,color:"var(--text2)",fontWeight:500,marginBottom:3}}>שלום, {editingName?"":`${userName} 👋`}</div>
             {editingName
-              ?<input autoFocus style={{...I,fontSize:26,fontWeight:900,padding:"4px 8px",width:200,background:"transparent",border:"1px solid var(--accent)"}} value={userName} onChange={e=>setUserName(e.target.value)} onBlur={()=>setEditingName(false)} onKeyDown={e=>{if(e.key==="Enter")setEditingName(false)}}/>
-              :<h1 onClick={()=>setEditingName(true)} style={{fontSize:28,fontWeight:900,letterSpacing:"-0.7px",cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>{userName}<Plane size={22} style={{color:"var(--accent)",transform:"rotate(-20deg)"}}/></h1>}
+              ?<input autoFocus style={{...I,fontSize:20,fontWeight:800,padding:"4px 8px",width:180}} value={userName} onChange={e=>setUserName(e.target.value)} onBlur={()=>setEditingName(false)} onKeyDown={e=>{if(e.key==="Enter")setEditingName(false)}}/>
+              :<div onClick={()=>setEditingName(true)} style={{fontSize:15,fontWeight:700,color:"var(--text)",cursor:"pointer"}}>יום {new Date().toLocaleDateString("he-IL",{weekday:"long",day:"numeric",month:"long"})}</div>}
           </div>
-          <button onClick={()=>setScreen("syncSettings")} style={{width:44,height:44,borderRadius:16,background:"rgba(255,255,255,0.04)",display:"flex",alignItems:"center",justifyContent:"center",border:`1px solid ${githubToken?"rgba(0,229,160,.3)":"var(--border)"}`,cursor:"pointer",position:"relative"}}>
-            <Settings size={18} color={githubToken?"var(--accent)":"var(--text2)"}/>
-            {syncStatus==='saving'&&<div style={{position:"absolute",top:8,right:8,width:7,height:7,borderRadius:"50%",background:"#F9CA24",animation:"pulse 1s infinite"}}/>}
-            {syncStatus==='saved'&&<div style={{position:"absolute",top:8,right:8,width:7,height:7,borderRadius:"50%",background:"var(--accent)"}}/>}
-            {syncStatus==='error'&&<div style={{position:"absolute",top:8,right:8,width:7,height:7,borderRadius:"50%",background:"var(--red)"}}/>}
-            {!syncStatus&&githubToken&&<div style={{position:"absolute",top:8,right:8,width:7,height:7,borderRadius:"50%",background:"var(--accent)",opacity:.6}}/>}
-          </button>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>setScreen("syncSettings")} style={{width:40,height:40,borderRadius:13,background:"var(--card)",boxShadow:"var(--shadow)",display:"flex",alignItems:"center",justifyContent:"center",border:"none",cursor:"pointer",position:"relative"}}>
+              <Settings size={18} color={githubToken?"var(--accent)":"var(--text2)"}/>
+              {syncStatus==='saving'&&<div style={{position:"absolute",top:8,right:8,width:7,height:7,borderRadius:"50%",background:"#F9CA24",animation:"pulse 1s infinite"}}/>}
+              {syncStatus==='saved'&&<div style={{position:"absolute",top:8,right:8,width:7,height:7,borderRadius:"50%",background:"var(--accent)"}}/>}
+              {syncStatus==='error'&&<div style={{position:"absolute",top:8,right:8,width:7,height:7,borderRadius:"50%",background:"var(--red)"}}/>}
+            </button>
+            <div style={{width:40,height:40,borderRadius:13,background:"linear-gradient(135deg,#1E5BD6,#163FA5)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:700,color:"#fff"}}>
+              {userName.charAt(0)||"T"}
+            </div>
+          </div>
         </div>
+
+        {/* Hero trip card */}
+        {heroTrip&&(()=>{
+          const t=heroTrip;
+          const days=t.startDate&&t.endDate?Math.ceil((new Date(t.endDate)-new Date(t.startDate))/(1000*60*60*24))+1:null;
+          const total=days||14;
+          const now=new Date();
+          const start=t.startDate?new Date(t.startDate):null;
+          const end=t.endDate?new Date(t.endDate):null;
+          const done=(!start||now<start)?0:(!end||now>end)?total:Math.max(1,Math.ceil((now-start)/(1000*60*60*24)));
+          return(
+            <div style={{marginBottom:28}}>
+              <div onClick={()=>{setActiveTrip(t.id);setScreen("trip");setTab("entries");}} style={{background:"linear-gradient(135deg,#1E5BD6,#163FA5)",borderRadius:22,padding:"18px 20px 20px",color:"#fff",position:"relative",overflow:"hidden",cursor:"pointer",boxShadow:"0 8px 28px rgba(30,91,214,.3)"}}>
+                <Sparkle right={16} top={14} size={14} opacity={0.7} color="#fff"/>
+                <Sparkle right={44} top={32} size={9} opacity={0.5} color="#fff"/>
+                <Sparkle left={20} bottom={18} size={11} opacity={0.5} color="#fff"/>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                  <div>
+                    <div style={{fontSize:11,opacity:0.85,letterSpacing:"0.05em"}}>הטיול האחרון שלי</div>
+                    <div style={{fontSize:24,fontWeight:800,marginTop:6,lineHeight:1.1,letterSpacing:"-0.01em"}}>{t.name}</div>
+                    <div style={{fontSize:12,opacity:0.85,marginTop:6}}>{t.country||""}
+                      {days?` · ${days} ימים`:""}
+                      {start&&end&&now>=start&&now<=end?" · בטיול עכשיו!":""}
+                    </div>
+                  </div>
+                  <div style={{width:44,height:44,borderRadius:14,background:"rgba(255,255,255,0.18)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    <Plane size={20} color="#fff"/>
+                  </div>
+                </div>
+                {days&&days>0&&<div style={{marginTop:14,display:"flex",gap:3}}>
+                  {Array.from({length:Math.min(total,20)}).map((_,i)=>(
+                    <div key={i} style={{flex:1,height:4,borderRadius:2,background:i<done?"#fff":"rgba(255,255,255,0.28)"}}/>
+                  ))}
+                </div>}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Sections */}
         {SECS.map((sec,si)=>(
-          <div key={sec.title} style={{marginBottom:30}}>
-            <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:14,paddingRight:4}}>{sec.title}</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          <div key={sec.title} style={{marginBottom:28}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,position:"relative"}}>
+              <div style={{fontSize:18,fontWeight:800,color:"var(--text)",letterSpacing:"-0.01em",position:"relative"}}>
+                <Sparkle right={-14} top={-2} size={10} opacity={0.7}/>
+                <Sparkle right={-22} top={14} size={6} opacity={0.5}/>
+                {sec.title}
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
               {sec.items.map(item=>{const Icon=item.Icon;return(
-                <button key={item.id} onClick={item.fn} style={{background:item.grad,borderRadius:24,border:"none",padding:"22px 14px 18px",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12,cursor:"pointer",position:"relative",boxShadow:"0 8px 28px rgba(0,0,0,.3)",minHeight:130,fontFamily:"Inter",transition:"transform .15s"}}>
-                  {item.badge!=null&&<div style={{position:"absolute",top:10,right:10,minWidth:22,height:22,borderRadius:11,background:"rgba(255,255,255,.25)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:"#fff",padding:"0 6px"}}>{item.badge}</div>}
-                  <div style={{width:56,height:56,borderRadius:18,background:"rgba(255,255,255,.18)",display:"flex",alignItems:"center",justifyContent:"center"}}><Icon size={28} color="#fff" strokeWidth={1.8}/></div>
-                  <span style={{fontSize:13,fontWeight:700,color:"#fff",textAlign:"center",lineHeight:1.35,letterSpacing:"-0.2px"}}>{item.label}</span>
+                <button key={item.id} onClick={item.fn} style={{background:"var(--card)",borderRadius:22,border:"1px solid var(--border)",padding:"18px 16px",display:"flex",flexDirection:"column",justifyContent:"space-between",cursor:"pointer",position:"relative",boxShadow:"var(--shadow)",minHeight:130,fontFamily:"Heebo,system-ui",transition:"transform .12s",textAlign:"right",overflow:"hidden"}}>
+                  <Sparkle right={10} top={10} size={11} opacity={0.5}/>
+                  <Sparkle right={26} top={26} size={6} opacity={0.4}/>
+                  {item.badge!=null&&<div style={{position:"absolute",top:10,left:10,minWidth:22,height:22,borderRadius:11,background:item.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:"#fff",padding:"0 6px"}}>{item.badge}</div>}
+                  <div style={{width:52,height:52,borderRadius:14,background:item.color,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 6px 14px ${item.color}40`}}>
+                    <Icon size={24} color="#fff" strokeWidth={1.8}/>
+                  </div>
+                  <div style={{marginTop:14}}>
+                    <div style={{fontSize:14,fontWeight:700,color:"var(--text)",letterSpacing:"-0.01em"}}>{item.label}</div>
+                    {item.sub&&<div style={{fontSize:11,color:"var(--text2)",marginTop:4,lineHeight:1.4}}>{item.sub}</div>}
+                  </div>
                 </button>
               );})}
             </div>
@@ -353,20 +421,20 @@ export default function App(){
                   <button onClick={e=>{e.stopPropagation();delTrip(t.id)}} style={{background:"rgba(0,0,0,0.3)",border:"none",borderRadius:10,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><X size={14} color="#fff"/></button>
                 </div>
               </div>
-              <div style={{background:"var(--surface)",padding:"14px 20px 16px"}}>
+              <div style={{background:"var(--card)",padding:"14px 20px 16px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                   <div style={{display:"flex",gap:12,fontSize:12,color:"var(--text2)"}}>
-                    <span style={{display:"flex",alignItems:"center",gap:4}}><Clock size={12}/>{t.startDate?`${t.startDate.slice(5)} → ${(t.endDate||"?").slice(5)}`:"ללא תאריכים"}{t.startDate&&t.endDate&&<span style={{marginLeft:4,background:"rgba(255,255,255,0.08)",borderRadius:6,padding:"1px 6px",fontWeight:700,color:"var(--accent)",fontSize:10}}>{dBtw(t.startDate,t.endDate)}d</span>}</span>
+                    <span style={{display:"flex",alignItems:"center",gap:4}}><Clock size={12}/>{t.startDate?`${t.startDate.slice(5)} → ${(t.endDate||"?").slice(5)}`:"ללא תאריכים"}{t.startDate&&t.endDate&&<span style={{marginLeft:4,background:"rgba(30,91,214,0.1)",borderRadius:6,padding:"1px 6px",fontWeight:700,color:"var(--accent)",fontSize:10}}>{dBtw(t.startDate,t.endDate)}d</span>}</span>
                     <span style={{display:"flex",alignItems:"center",gap:4}}><Receipt size={12}/>{t.expenses.length}</span>
                   </div>
                 </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
                   <div style={{fontSize:24,fontWeight:900,color:"var(--accent)",letterSpacing:"-0.8px"}}>{fC(spent,t.currency)}</div>
-                  {perDay>0&&<div style={{fontSize:12,color:"var(--text2)",fontWeight:600}}>{fC(perDay,t.currency)}<span style={{opacity:.5}}> /day</span></div>}
+                  {perDay>0&&<div style={{fontSize:12,color:"var(--text2)",fontWeight:600}}>{fC(perDay,t.currency)}<span style={{opacity:.5}}> /יום</span></div>}
                 </div>
                 {t.budget>0&&<div style={{marginTop:10}}>
-                  <div style={{height:5,borderRadius:3,background:"rgba(255,255,255,0.06)",overflow:"hidden"}}><div style={{height:"100%",borderRadius:3,width:`${pct}%`,background:over?"linear-gradient(90deg,#FF4757,#FF6B81)":"linear-gradient(90deg,#00E5A0,#00C9DB)"}}/></div>
-                  <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginTop:4,color:"var(--text2)"}}><span>{pct.toFixed(0)}% used</span><span style={{fontWeight:600,color:over?"var(--red)":"var(--accent)"}}>{over?"Over budget":fC(t.budget-spent,t.currency)+" left"}</span></div>
+                  <div style={{height:5,borderRadius:3,background:"var(--border)",overflow:"hidden"}}><div style={{height:"100%",borderRadius:3,width:`${pct}%`,background:over?"linear-gradient(90deg,#E63946,#FF6B81)":"linear-gradient(90deg,#1E5BD6,#3FB5E8)"}}/></div>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginTop:4,color:"var(--text2)"}}><span>{pct.toFixed(0)}% נוצל</span><span style={{fontWeight:600,color:over?"var(--red)":"var(--accent)"}}>{over?"חריגה מתקציב":fC(t.budget-spent,t.currency)+" נותר"}</span></div>
                 </div>}
               </div>
             </div>
