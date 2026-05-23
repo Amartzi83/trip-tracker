@@ -402,6 +402,31 @@ export default function App(){
           );
         })()}
 
+        {/* USD → THB rate widget */}
+        {(()=>{
+          const thb=rates['THB']||35.71;
+          const val=Math.round(100*thb).toLocaleString();
+          const rate=thb.toFixed(2);
+          return(
+            <button onClick={()=>setScreen("xeScreen")} style={{width:"100%",marginBottom:18,background:"var(--card)",borderRadius:18,padding:"12px 16px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:"var(--shadow)",border:"1px solid var(--border)",fontFamily:"Heebo,system-ui"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <div style={{width:40,height:40,borderRadius:13,background:"linear-gradient(135deg,#F5B53E,#f0932b)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>💵</div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:11,color:"var(--text2)",fontWeight:500,marginBottom:1}}>שער המרה עדכני</div>
+                  <div style={{fontSize:13,color:"var(--text)",fontWeight:700}}>1 USD = <span style={{color:"#f0932b"}}>{rate} ฿</span></div>
+                </div>
+              </div>
+              <div style={{textAlign:"left",display:"flex",alignItems:"center",gap:8}}>
+                <div>
+                  <div style={{fontSize:11,color:"var(--text2)",fontWeight:500}}>100 דולר</div>
+                  <div style={{fontSize:20,fontWeight:900,color:"var(--text)",letterSpacing:"-0.5px"}}>{val} <span style={{fontSize:13,color:"#f0932b",fontWeight:700}}>฿</span></div>
+                </div>
+                <ChevronRight size={14} color="var(--text2)"/>
+              </div>
+            </button>
+          );
+        })()}
+
         {/* Hero trip card */}
         {heroTrip&&(()=>{
           const t=heroTrip;
