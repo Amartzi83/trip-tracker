@@ -150,7 +150,7 @@ export default function App(){
   useEffect(()=>{(async()=>{try{const r=await fetch("https://open.er-api.com/v6/latest/USD");const d=await r.json();if(d?.rates){setRates(d.rates);setRatesTime(new Date().toLocaleTimeString())}}catch{}})()},[]);
   useEffect(()=>{if(window.speechSynthesis){window.speechSynthesis.getVoices()}},[]);
   useEffect(()=>{
-    if(screen!=="weatherScreen")return;
+    if(screen!=="weatherScreen"&&screen!=="home")return;
     setPattayaLoading(true);
     fetch("https://api.open-meteo.com/v1/forecast?latitude=12.9236&longitude=100.8825&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m&timezone=Asia/Bangkok")
       .then(r=>r.json()).then(d=>{if(d?.current)setPattayaWeather(d.current);}).catch(()=>{}).finally(()=>setPattayaLoading(false));
@@ -296,7 +296,6 @@ export default function App(){
       ]},
       {title:"אפליקציות שימושיות",items:[
         {id:"finance",label:"כספים ועמלות",sub:"שערים ועמלות בנק",Icon:CreditCard,color:"#f0932b",fn:()=>setScreen("financeScreen")},
-        {id:"weather",label:"מזג אויר",sub:"תחזית ותנאים",Icon:Cloud,color:"#0984e3",fn:()=>setScreen("weatherScreen")},
         {id:"events",label:"אירועים וחגים",sub:"לוח אירועים",Icon:CalendarDays,color:"#e84393",fn:()=>setScreen("eventsScreen")},
         {id:"links",label:"קישורים שימושיים",sub:"כל כלי הטיול",Icon:Link2,color:"#6c5ce7",fn:()=>setScreen("linksScreen")},
       ]},
@@ -336,6 +335,45 @@ export default function App(){
             </div>
           </div>
         </div>
+
+        {/* Pattaya weather widget */}
+        {(()=>{
+          function wDescHome(code){
+            if(code===0)return{desc:"שמיים בהירים",emoji:"☀️"};
+            if(code<=2)return{desc:"בהיר חלקית",emoji:"🌤️"};
+            if(code<=3)return{desc:"מעונן",emoji:"☁️"};
+            if(code<=48)return{desc:"ערפל",emoji:"🌫️"};
+            if(code<=55)return{desc:"טפטוף",emoji:"🌦️"};
+            if(code<=65)return{desc:"גשם",emoji:"🌧️"};
+            if(code<=82)return{desc:"גשמי מקלחות",emoji:"🌦️"};
+            if(code<=95)return{desc:"סופת רעמים",emoji:"⛈️"};
+            return{desc:"סופת רעמים",emoji:"⛈️"};
+          }
+          const wd=pattayaWeather?wDescHome(pattayaWeather.weather_code):{emoji:"🌡️",desc:""};
+          return(
+            <button onClick={()=>setScreen("weatherScreen")} style={{width:"100%",marginBottom:18,background:"rgba(255,255,255,0.18)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.28)",borderRadius:18,padding:"12px 16px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:"0 4px 16px rgba(0,0,0,0.1)",fontFamily:"Heebo,system-ui"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontSize:26}}>{wd.emoji}</span>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,0.8)",fontWeight:500,marginBottom:1}}>📍 פטאיה, תאילנד</div>
+                  <div style={{fontSize:13,color:"#fff",fontWeight:600}}>{pattayaLoading?"טוען...":pattayaWeather?wd.desc:"—"}</div>
+                </div>
+              </div>
+              {pattayaWeather&&<div style={{display:"flex",alignItems:"center",gap:12}}>
+                <div style={{textAlign:"center"}}>
+                  <div style={{fontSize:22,fontWeight:900,color:"#fff",lineHeight:1}}>{Math.round(pattayaWeather.temperature_2m)}°</div>
+                  <div style={{fontSize:9,color:"rgba(255,255,255,0.7)"}}>C</div>
+                </div>
+                <div style={{width:1,height:30,background:"rgba(255,255,255,0.25)"}}/>
+                <div style={{textAlign:"center"}}>
+                  <div style={{fontSize:12,fontWeight:700,color:"#fff"}}>💧 {pattayaWeather.relative_humidity_2m}%</div>
+                  <div style={{fontSize:10,color:"rgba(255,255,255,0.7)"}}>💨 {Math.round(pattayaWeather.wind_speed_10m)} km/h</div>
+                </div>
+                <ChevronRight size={14} color="rgba(255,255,255,0.6)"/>
+              </div>}
+            </button>
+          );
+        })()}
 
         {/* Hero trip card */}
         {heroTrip&&(()=>{
