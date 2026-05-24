@@ -10,15 +10,21 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/trip-tracker/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/trip-tracker/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/trip-tracker/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/trip-tracker/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/trip-tracker/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "maskable"
     }
   ]
