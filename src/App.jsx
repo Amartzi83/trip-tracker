@@ -29,7 +29,45 @@ const CURRS=[
   {code:"CAD",symbol:"C$",name:"CAD"},{code:"CHF",symbol:"Fr",name:"Franc"},{code:"SEK",symbol:"kr",name:"Krona"},
 ];
 const FR={USD:1,EUR:0.926,GBP:0.793,ILS:3.704,THB:35.71,JPY:149.3,TRY:32.26,INR:83.33,AUD:1.538,CAD:1.351,CHF:0.88,SEK:10.5};
-const COUNTRY_ISO={"Afghanistan":"AF","Albania":"AL","Algeria":"DZ","Argentina":"AR","Armenia":"AM","Australia":"AU","Austria":"AT","Azerbaijan":"AZ","Bahrain":"BH","Bangladesh":"BD","Belarus":"BY","Belgium":"BE","Bolivia":"BO","Bosnia":"BA","Brazil":"BR","Bulgaria":"BG","Cambodia":"KH","Canada":"CA","Chile":"CL","China":"CN","Colombia":"CO","Croatia":"HR","Cuba":"CU","Cyprus":"CY","Czech":"CZ","Denmark":"DK","Ecuador":"EC","Egypt":"EG","Estonia":"EE","Ethiopia":"ET","Finland":"FI","France":"FR","Georgia":"GE","Germany":"DE","Ghana":"GH","Greece":"GR","Hungary":"HU","Iceland":"IS","India":"IN","Indonesia":"ID","Iran":"IR","Iraq":"IQ","Ireland":"IE","Israel":"IL","Italy":"IT","Japan":"JP","Jordan":"JO","Kazakhstan":"KZ","Kenya":"KE","Kosovo":"XK","Kuwait":"KW","Latvia":"LV","Lebanon":"LB","Libya":"LY","Lithuania":"LT","Luxembourg":"LU","Malaysia":"MY","Malta":"MT","Mexico":"MX","Moldova":"MD","Mongolia":"MN","Montenegro":"ME","Morocco":"MA","Myanmar":"MM","Nepal":"NP","Netherlands":"NL","New Zealand":"NZ","Nigeria":"NG","North Macedonia":"MK","Norway":"NO","Oman":"OM","Pakistan":"PK","Palestine":"PS","Panama":"PA","Peru":"PE","Philippines":"PH","Poland":"PL","Portugal":"PT","Qatar":"QA","Romania":"RO","Russia":"RU","Saudi Arabia":"SA","Serbia":"RS","Singapore":"SG","Slovakia":"SK","Slovenia":"SI","South Africa":"ZA","South Korea":"KR","Spain":"ES","Sri Lanka":"LK","Sweden":"SE","Switzerland":"CH","Syria":"SY","Taiwan":"TW","Tanzania":"TZ","Thailand":"TH","Tunisia":"TN","Turkey":"TR","UAE":"AE","UK":"GB","Ukraine":"UA","Uruguay":"UY","USA":"US","Uzbekistan":"UZ","Venezuela":"VE","Vietnam":"VN","Yemen":"YE","Zimbabwe":"ZW"};
+const COUNTRIES=[
+  {en:"Thailand",he:"תאילנד",iso:"TH"},{en:"Israel",he:"ישראל",iso:"IL"},{en:"Greece",he:"יוון",iso:"GR"},
+  {en:"Italy",he:"איטליה",iso:"IT"},{en:"Spain",he:"ספרד",iso:"ES"},{en:"France",he:"צרפת",iso:"FR"},
+  {en:"Germany",he:"גרמניה",iso:"DE"},{en:"Portugal",he:"פורטוגל",iso:"PT"},{en:"UK",he:"בריטניה",iso:"GB"},
+  {en:"USA",he:'ארה"ב',iso:"US"},{en:"Turkey",he:"טורקיה",iso:"TR"},{en:"Romania",he:"רומניה",iso:"RO"},
+  {en:"Bulgaria",he:"בולגריה",iso:"BG"},{en:"Croatia",he:"קרואטיה",iso:"HR"},{en:"Hungary",he:"הונגריה",iso:"HU"},
+  {en:"Poland",he:"פולין",iso:"PL"},{en:"Czech",he:"צ'כיה",iso:"CZ"},{en:"Austria",he:"אוסטריה",iso:"AT"},
+  {en:"Switzerland",he:"שווייץ",iso:"CH"},{en:"Netherlands",he:"הולנד",iso:"NL"},{en:"Belgium",he:"בלגיה",iso:"BE"},
+  {en:"Sweden",he:"שוודיה",iso:"SE"},{en:"Norway",he:"נורווגיה",iso:"NO"},{en:"Denmark",he:"דנמרק",iso:"DK"},
+  {en:"Finland",he:"פינלנד",iso:"FI"},{en:"Iceland",he:"איסלנד",iso:"IS"},{en:"Ireland",he:"אירלנד",iso:"IE"},
+  {en:"Malta",he:"מלטה",iso:"MT"},{en:"Cyprus",he:"קפריסין",iso:"CY"},{en:"Serbia",he:"סרביה",iso:"RS"},
+  {en:"Montenegro",he:"מונטנגרו",iso:"ME"},{en:"Albania",he:"אלבניה",iso:"AL"},{en:"Slovenia",he:"סלובניה",iso:"SI"},
+  {en:"Slovakia",he:"סלובקיה",iso:"SK"},{en:"Estonia",he:"אסטוניה",iso:"EE"},{en:"Latvia",he:"לטביה",iso:"LV"},
+  {en:"Lithuania",he:"ליטא",iso:"LT"},{en:"Ukraine",he:"אוקראינה",iso:"UA"},{en:"Russia",he:"רוסיה",iso:"RU"},
+  {en:"Georgia",he:"גאורגיה",iso:"GE"},{en:"Armenia",he:"ארמניה",iso:"AM"},{en:"Azerbaijan",he:"אזרבייג'ן",iso:"AZ"},
+  {en:"India",he:"הודו",iso:"IN"},{en:"Japan",he:"יפן",iso:"JP"},{en:"China",he:"סין",iso:"CN"},
+  {en:"South Korea",he:"קוריאה",iso:"KR"},{en:"Vietnam",he:"וייטנאם",iso:"VN"},{en:"Indonesia",he:"אינדונזיה",iso:"ID"},
+  {en:"Malaysia",he:"מלזיה",iso:"MY"},{en:"Philippines",he:"פיליפינים",iso:"PH"},{en:"Singapore",he:"סינגפור",iso:"SG"},
+  {en:"Cambodia",he:"קמבודיה",iso:"KH"},{en:"Myanmar",he:"מיאנמר",iso:"MM"},{en:"Nepal",he:"נפאל",iso:"NP"},
+  {en:"Sri Lanka",he:"סרי לנקה",iso:"LK"},{en:"Bangladesh",he:"בנגלדש",iso:"BD"},{en:"Pakistan",he:"פקיסטן",iso:"PK"},
+  {en:"UAE",he:"איחוד האמירויות",iso:"AE"},{en:"Saudi Arabia",he:'ערב הסעודית',iso:"SA"},{en:"Jordan",he:"ירדן",iso:"JO"},
+  {en:"Lebanon",he:"לבנון",iso:"LB"},{en:"Egypt",he:"מצרים",iso:"EG"},{en:"Morocco",he:"מרוקו",iso:"MA"},
+  {en:"Tunisia",he:"תוניסיה",iso:"TN"},{en:"Qatar",he:"קטר",iso:"QA"},{en:"Kuwait",he:"כווית",iso:"KW"},
+  {en:"Bahrain",he:"בחריין",iso:"BH"},{en:"Oman",he:"עומאן",iso:"OM"},{en:"Australia",he:"אוסטרליה",iso:"AU"},
+  {en:"New Zealand",he:"ניו זילנד",iso:"NZ"},{en:"Canada",he:"קנדה",iso:"CA"},{en:"Mexico",he:"מקסיקו",iso:"MX"},
+  {en:"Brazil",he:"ברזיל",iso:"BR"},{en:"Argentina",he:"ארגנטינה",iso:"AR"},{en:"Colombia",he:"קולומביה",iso:"CO"},
+  {en:"Peru",he:"פרו",iso:"PE"},{en:"Chile",he:"צ'ילה",iso:"CL"},{en:"South Africa",he:"דרום אפריקה",iso:"ZA"},
+  {en:"Kenya",he:"קניה",iso:"KE"},{en:"Ethiopia",he:"אתיופיה",iso:"ET"},{en:"Tanzania",he:"טנזניה",iso:"TZ"},
+  {en:"Ghana",he:"גאנה",iso:"GH"},{en:"Nigeria",he:"ניגריה",iso:"NG"},{en:"Kazakhstan",he:"קזחסטן",iso:"KZ"},
+  {en:"Uzbekistan",he:"אוזבקיסטן",iso:"UZ"},{en:"Mongolia",he:"מונגוליה",iso:"MN"},{en:"Taiwan",he:"טייוואן",iso:"TW"},
+  {en:"Palestine",he:"פלסטין",iso:"PS"},{en:"Syria",he:"סוריה",iso:"SY"},{en:"Iraq",he:"עיראק",iso:"IQ"},
+  {en:"Iran",he:"איראן",iso:"IR"},{en:"Kosovo",he:"קוסובו",iso:"XK"},{en:"North Macedonia",he:"מקדוניה",iso:"MK"},
+  {en:"Bosnia",he:"בוסניה",iso:"BA"},{en:"Luxembourg",he:"לוקסמבורג",iso:"LU"},{en:"Moldova",he:"מולדובה",iso:"MD"},
+  {en:"Belarus",he:"בלארוס",iso:"BY"},{en:"Bolivia",he:"בוליביה",iso:"BO"},{en:"Ecuador",he:"אקוודור",iso:"EC"},
+  {en:"Venezuela",he:"ונצואלה",iso:"VE"},{en:"Uruguay",he:"אורוגוואי",iso:"UY"},{en:"Panama",he:"פנמה",iso:"PA"},
+  {en:"Cuba",he:"קובה",iso:"CU"},{en:"Yemen",he:"תימן",iso:"YE"},{en:"Libya",he:"לוב",iso:"LY"},
+  {en:"Algeria",he:"אלג'יריה",iso:"DZ"},{en:"Zimbabwe",he:"זימבבואה",iso:"ZW"},
+];
+const COUNTRY_ISO=Object.fromEntries([...COUNTRIES.map(c=>[c.en,c.iso]),...COUNTRIES.map(c=>[c.he,c.iso])]);
 function isoToFlag(iso){if(!iso||iso.length!==2)return"🌍";return String.fromCodePoint(...iso.toUpperCase().split('').map(c=>0x1F1E6+c.charCodeAt(0)-65));}
 
 const LANGS=[{code:"en",name:"English",flag:"🇬🇧"},{code:"he",name:"Hebrew",flag:"🇮🇱"},{code:"th",name:"Thai",flag:"🇹🇭"},{code:"es",name:"Spanish",flag:"🇪🇸"},{code:"fr",name:"French",flag:"🇫🇷"},{code:"de",name:"German",flag:"🇩🇪"},{code:"it",name:"Italian",flag:"🇮🇹"},{code:"pt",name:"Portuguese",flag:"🇵🇹"},{code:"ja",name:"Japanese",flag:"🇯🇵"},{code:"zh",name:"Chinese",flag:"🇨🇳"},{code:"ko",name:"Korean",flag:"🇰🇷"},{code:"ar",name:"Arabic",flag:"🇸🇦"},{code:"tr",name:"Turkish",flag:"🇹🇷"},{code:"ru",name:"Russian",flag:"🇷🇺"},{code:"hi",name:"Hindi",flag:"🇮🇳"},{code:"vi",name:"Vietnamese",flag:"🇻🇳"},{code:"el",name:"Greek",flag:"🇬🇷"},{code:"nl",name:"Dutch",flag:"🇳🇱"}];
@@ -1155,7 +1193,13 @@ export default function App(){
         <h2 style={{fontSize:26,fontWeight:800,margin:"20px 0 28px",letterSpacing:"-0.5px",display:"flex",alignItems:"center",gap:10}}><Plane size={24} style={{color:"var(--accent)"}}/>New Trip</h2>
         <div style={{display:"flex",flexDirection:"column",gap:18}}>
           <div><label style={L}>Trip Name</label><input style={I} placeholder="Athens & Islands" value={newTrip.name} onChange={e=>setNewTrip(p=>({...p,name:e.target.value}))}/></div>
-          <div><label style={L}>Country</label><input style={I} placeholder="Greece" value={newTrip.country} onChange={e=>setNewTrip(p=>({...p,country:e.target.value}))}/></div>
+          <div><label style={L}>Country</label>
+            <div style={{position:"relative",display:"flex",alignItems:"center"}}>
+              <span style={{position:"absolute",right:14,fontSize:22,pointerEvents:"none"}}>{isoToFlag(COUNTRY_ISO[newTrip.country])||""}</span>
+              <input style={{...I,paddingRight:48}} placeholder="רומניה / Romania" list="country-list" value={newTrip.country} onChange={e=>setNewTrip(p=>({...p,country:e.target.value}))}/>
+            </div>
+            <datalist id="country-list">{COUNTRIES.map(c=><option key={c.iso} value={c.he}/>).concat(COUNTRIES.map(c=><option key={c.iso+"e"} value={c.en}/>))}</datalist>
+          </div>
           <div style={{display:"flex",gap:12}}>
             <div style={{flex:1}}><label style={L}>Budget</label><input style={I} type="number" placeholder="2000" value={newTrip.budget} onChange={e=>setNewTrip(p=>({...p,budget:e.target.value}))}/></div>
             <div style={{width:110}}><label style={L}>Currency</label><select style={I} value={newTrip.currency} onChange={e=>setNewTrip(p=>({...p,currency:e.target.value}))}>{CURRS.map(c=><option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}</select></div>
