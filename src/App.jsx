@@ -86,6 +86,7 @@ export default function App(){
   const[convAmt,setConvAmt]=useState("1");
   const[extraCurrs,setExtraCurrs]=useState(()=>{try{const s=localStorage.getItem('tt_extra_currs');if(s)return JSON.parse(s);}catch{}return[];});
   const[showCurrPicker,setShowCurrPicker]=useState(false);
+  const[homeTripId,setHomeTripId]=useState(()=>localStorage.getItem('tt_home_trip')||null);
   const[trFrom,setTrFrom]=useState("en");
   const[trTo,setTrTo]=useState("th");
   const[trText,setTrText]=useState("");
@@ -177,6 +178,7 @@ export default function App(){
   useEffect(()=>{if(screen==="syncSettings"){setTokenDraft(githubToken);setGistDraft(gistId);}},[screen]);
 
   useEffect(()=>{try{localStorage.setItem('tt_extra_currs',JSON.stringify(extraCurrs))}catch{}},[extraCurrs]);
+  useEffect(()=>{try{if(homeTripId)localStorage.setItem('tt_home_trip',homeTripId);else localStorage.removeItem('tt_home_trip')}catch{}},[homeTripId]);
   useEffect(()=>{(async()=>{try{const r=await fetch("https://open.er-api.com/v6/latest/USD");const d=await r.json();if(d?.rates){setRates(d.rates);setRatesTime(new Date().toLocaleTimeString())}}catch{}})()},[]);
   useEffect(()=>{if(window.speechSynthesis){window.speechSynthesis.getVoices()}},[]);
   useEffect(()=>{
@@ -330,7 +332,7 @@ export default function App(){
         {id:"thaiApps",label:"אפליקציות לתאילנד",sub:"Grab · Bolt · Lazada",Icon:Smartphone,color:"#00B14F",fn:()=>setScreen("thaiAppsScreen")},
       ]},
     ];
-    const heroTrip=trips.length>0?trips[trips.length-1]:null;
+    const heroTrip=trips.find(t=>t.id===homeTripId)||trips[trips.length-1]||null;
     const BG_IMGS=[
       'https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?w=1280&q=80&fit=crop&auto=format',
       'https://images.unsplash.com/photo-1528181304800-259b08848526?w=1280&q=80&fit=crop&auto=format',
@@ -545,6 +547,11 @@ export default function App(){
                     <span style={{display:"flex",alignItems:"center",gap:4}}><Clock size={12}/>{t.startDate?`${t.startDate.slice(5)} → ${(t.endDate||"?").slice(5)}`:"ללא תאריכים"}{t.startDate&&t.endDate&&<span style={{marginLeft:4,background:"rgba(30,91,214,0.1)",borderRadius:6,padding:"1px 6px",fontWeight:700,color:"var(--accent)",fontSize:10}}>{dBtw(t.startDate,t.endDate)}d</span>}</span>
                     <span style={{display:"flex",alignItems:"center",gap:4}}><Receipt size={12}/>{t.expenses.length}</span>
                   </div>
+                  <button onClick={e=>{e.stopPropagation();setHomeTripId(homeTripId===t.id?null:t.id);show(homeTripId===t.id?"הוסר מדף הבית":"מוצג בדף הבית!")}}
+                    style={{display:"flex",alignItems:"center",gap:5,padding:"5px 10px",borderRadius:10,border:homeTripId===t.id?"2px solid var(--accent)":"1.5px solid var(--border)",background:homeTripId===t.id?"rgba(30,91,214,0.08)":"var(--bg)",cursor:"pointer",fontSize:11,fontWeight:700,color:homeTripId===t.id?"var(--accent)":"var(--text2)",fontFamily:"Heebo,system-ui",transition:"all .15s"}}>
+                    <Star size={12} fill={homeTripId===t.id?"var(--accent)":"none"} color={homeTripId===t.id?"var(--accent)":"var(--text2)"}/>
+                    {homeTripId===t.id?"בדף הבית":"הצג בבית"}
+                  </button>
                 </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
                   <div style={{fontSize:24,fontWeight:900,color:"var(--accent)",letterSpacing:"-0.8px"}}>{fC(spent,t.currency)}</div>
