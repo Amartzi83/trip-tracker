@@ -1,3 +1,4 @@
+// v2.1
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Plane, Plus, ChevronLeft, MoreVertical, ArrowLeftRight, Globe, Receipt, TrendingUp, Coffee, UtensilsCrossed, ShoppingBag, Hotel, Bus, Wine, HeartPulse, Smartphone, Gift, Shield, Shirt, MapPin, Ticket, Camera, Music, Landmark, Palmtree, Eye, Pencil, Download, Share2, Settings, Trash2, UserPlus, Volume2, X, Clock, CreditCard, Wallet, Users, Copy, ExternalLink, ChevronRight, Compass, Utensils, Beer, Baby, ShoppingCart, TreePine, Waves, Gem, Map, Route, DollarSign, Navigation, Globe2, Star, Sun, FileText, Upload, Cloud, CalendarDays, Link2, Wind } from "lucide-react";
 
@@ -81,8 +82,10 @@ export default function App(){
   const[rates,setRates]=useState(FR);
   const[ratesTime,setRatesTime]=useState(null);
   const[convFrom,setConvFrom]=useState("USD");
-  const[convTo,setConvTo]=useState("ILS");
+  const[convTo,setConvTo]=useState("THB");
   const[convAmt,setConvAmt]=useState("1");
+  const[extraCurrs,setExtraCurrs]=useState(()=>{try{const s=localStorage.getItem('tt_extra_currs');if(s)return JSON.parse(s);}catch{}return[];});
+  const[showCurrPicker,setShowCurrPicker]=useState(false);
   const[trFrom,setTrFrom]=useState("en");
   const[trTo,setTrTo]=useState("th");
   const[trText,setTrText]=useState("");
@@ -173,6 +176,7 @@ export default function App(){
   },[userName]);
   useEffect(()=>{if(screen==="syncSettings"){setTokenDraft(githubToken);setGistDraft(gistId);}},[screen]);
 
+  useEffect(()=>{try{localStorage.setItem('tt_extra_currs',JSON.stringify(extraCurrs))}catch{}},[extraCurrs]);
   useEffect(()=>{(async()=>{try{const r=await fetch("https://open.er-api.com/v6/latest/USD");const d=await r.json();if(d?.rates){setRates(d.rates);setRatesTime(new Date().toLocaleTimeString())}}catch{}})()},[]);
   useEffect(()=>{if(window.speechSynthesis){window.speechSynthesis.getVoices()}},[]);
   useEffect(()=>{
@@ -559,7 +563,13 @@ export default function App(){
 
   /* MONEY SCREEN — combined converter + finance */
   if(screen==="moneyScreen"||screen==="xeScreen"){
-    const res=cv(parseFloat(convAmt)||0,convFrom,convTo);const rate=cv(1,convFrom,convTo);
+    const BASE_CURRS=["USD","EUR","THB"];
+    const allCodes=[...BASE_CURRS,...extraCurrs.filter(c=>!BASE_CURRS.includes(c))];
+    const activeCurrObjs=CURRS.filter(c=>allCodes.includes(c.code));
+    const availableToAdd=CURRS.filter(c=>!allCodes.includes(c.code));
+    const safeFrom=allCodes.includes(convFrom)?convFrom:"USD";
+    const safeTo=allCodes.includes(convTo)?convTo:"THB";
+    const res=cv(parseFloat(convAmt)||0,safeFrom,safeTo);const rate=cv(1,safeFrom,safeTo);
     const FLINKS=[
       {name:"XE.com",url:"https://www.xe.com/currencyconverter/",Icon:ArrowLeftRight,color:"#F9CA24",desc:"שערי מטבע בזמן אמת"},
       {name:"Wise",url:"https://wise.com/gb/currency-converter/",Icon:TrendingUp,color:"#37A94E",desc:"העברות בשיעור הטוב ביותר"},
@@ -579,25 +589,51 @@ export default function App(){
           <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:12}}>מחשבון המרה</div>
           <input style={{...I,fontSize:30,fontWeight:800,textAlign:"center",marginBottom:14,background:"transparent"}} type="number" step="0.01" value={convAmt} onChange={e=>setConvAmt(e.target.value)}/>
           <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:14}}>
-            <div style={{flex:1}}><select style={I} value={convFrom} onChange={e=>setConvFrom(e.target.value)}>{CURRS.map(c=><option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}</select></div>
-            <button onClick={()=>{setConvFrom(convTo);setConvTo(convFrom)}} style={{width:40,height:40,borderRadius:14,border:"1px solid var(--border)",background:"var(--card)",color:"var(--accent)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><ArrowLeftRight size={18}/></button>
-            <div style={{flex:1}}><select style={I} value={convTo} onChange={e=>setConvTo(e.target.value)}>{CURRS.map(c=><option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}</select></div>
+            <div style={{flex:1}}><select style={I} value={safeFrom} onChange={e=>setConvFrom(e.target.value)}>{activeCurrObjs.map(c=><option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}</select></div>
+            <button onClick={()=>{setConvFrom(safeTo);setConvTo(safeFrom)}} style={{width:40,height:40,borderRadius:14,border:"1px solid var(--border)",background:"var(--card)",color:"var(--accent)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><ArrowLeftRight size={18}/></button>
+            <div style={{flex:1}}><select style={I} value={safeTo} onChange={e=>setConvTo(e.target.value)}>{activeCurrObjs.map(c=><option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}</select></div>
           </div>
           <div style={{background:"var(--bg)",borderRadius:16,padding:"18px 20px",textAlign:"center",border:"1px solid var(--border)"}}>
-            <div style={{fontSize:36,fontWeight:900,color:"#f0932b",letterSpacing:"-1px"}}>{fC(res,convTo)}</div>
-            <div style={{fontSize:12,color:"var(--text2)",marginTop:6}}>1 {convFrom} = {rate.toFixed(4)} {convTo}</div>
+            <div style={{fontSize:36,fontWeight:900,color:"#f0932b",letterSpacing:"-1px"}}>{fC(res,safeTo)}</div>
+            <div style={{fontSize:12,color:"var(--text2)",marginTop:6}}>1 {safeFrom} = {rate.toFixed(4)} {safeTo}</div>
           </div>
           {ratesTime&&<div style={{fontSize:11,color:"var(--accent)",textAlign:"center",marginTop:10,fontWeight:600}}>✓ Live · {ratesTime}</div>}
         </div>
 
         {/* Quick Rates */}
         <div style={{...C,marginBottom:20}}>
-          <div style={{...L,marginBottom:10}}>שערים מהירים מ-{convFrom}</div>
-          {CURRS.filter(c=>c.code!==convFrom).map(c=>{const r=cv(1,convFrom,c.code);return(
-            <div key={c.code} onClick={()=>setConvTo(c.code)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:"1px solid var(--border)",cursor:"pointer",fontSize:13}}>
-              <span style={{fontWeight:600,color:convTo===c.code?"var(--accent)":"var(--text)"}}>{c.symbol} {c.code} <span style={{fontWeight:400,color:"var(--text2)",fontSize:11}}>{c.name}</span></span>
-              <span style={{fontWeight:800,color:convTo===c.code?"var(--accent)":"var(--text)"}}>{r.toFixed(c.code==="JPY"?2:4)}</span>
-            </div>)})}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",letterSpacing:"1.5px",textTransform:"uppercase"}}>שערים מ-{safeFrom}</div>
+            {availableToAdd.length>0&&(showCurrPicker
+              ?<div style={{display:"flex",gap:6,alignItems:"center"}}>
+                  <select autoFocus style={{...I,padding:"6px 10px",fontSize:12,borderRadius:10,width:"auto"}}
+                    onChange={e=>{if(e.target.value){setExtraCurrs(p=>[...p,e.target.value]);setShowCurrPicker(false)}}} defaultValue="">
+                    <option value="" disabled>בחר מטבע...</option>
+                    {availableToAdd.map(c=><option key={c.code} value={c.code}>{c.symbol} {c.code} – {c.name}</option>)}
+                  </select>
+                  <button onClick={()=>setShowCurrPicker(false)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--text2)",padding:4,display:"flex"}}><X size={16}/></button>
+                </div>
+              :<button onClick={()=>setShowCurrPicker(true)} style={{display:"flex",alignItems:"center",gap:4,background:"var(--accent)",border:"none",borderRadius:10,padding:"5px 12px",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"Heebo,system-ui"}}>
+                  <Plus size={13}/>הוסף מטבע
+                </button>
+            )}
+          </div>
+          {activeCurrObjs.filter(c=>c.code!==safeFrom).map((c,i,arr)=>{
+            const r=cv(1,safeFrom,c.code);
+            const isBase=BASE_CURRS.includes(c.code);
+            return(
+              <div key={c.code} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:i<arr.length-1?"1px solid var(--border)":"none",fontSize:13}}>
+                <div style={{display:"flex",alignItems:"center",gap:6,flex:1,cursor:"pointer"}} onClick={()=>setConvTo(c.code)}>
+                  <span style={{fontWeight:700,color:safeTo===c.code?"var(--accent)":"var(--text)"}}>{c.symbol} {c.code}</span>
+                  <span style={{fontWeight:400,color:"var(--text2)",fontSize:11}}>{c.name}</span>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <span style={{fontWeight:800,color:safeTo===c.code?"var(--accent)":"var(--text)",cursor:"pointer"}} onClick={()=>setConvTo(c.code)}>{r.toFixed(c.code==="JPY"?2:4)}</span>
+                  {!isBase&&<button onClick={()=>{setExtraCurrs(p=>p.filter(x=>x!==c.code));if(safeTo===c.code)setConvTo("THB")}} style={{background:"none",border:"none",cursor:"pointer",color:"#ccc",padding:2,display:"flex",alignItems:"center"}}><X size={14}/></button>}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* Bank fees */}
@@ -1137,7 +1173,7 @@ export default function App(){
           <div style={{display:"flex",flexDirection:"column",gap:16}}>
             <div style={{display:"flex",gap:12}}>
               <div style={{flex:1}}><label style={L}>Amount</label><input style={{...I,fontSize:28,fontWeight:800,textAlign:"center"}} type="number" step="0.01" placeholder="0.00" value={exp.amount} onChange={e=>setE(p=>({...p,amount:e.target.value}))} autoFocus/></div>
-              <div style={{width:100}}><label style={L}>Currency</label><select style={I} value={exp.currency} onChange={e=>setE(p=>({...p,currency:e.target.value}))}>{CURRS.map(c=><option key={c.code} value={c.code}>{c.symbol}</option>)}</select></div>
+              <div style={{width:110}}><label style={L}>Currency</label><select style={I} value={exp.currency} onChange={e=>setE(p=>({...p,currency:e.target.value}))}>{CURRS.map(c=><option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}</select></div>
             </div>
             <div><label style={L}>Category</label>
               <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{CATS.map(c=>{const Icon=c.icon;return<button key={c.id} onClick={()=>setE(p=>({...p,category:c.id}))} style={{padding:"8px 12px",borderRadius:12,border:exp.category===c.id?`2px solid ${c.color}`:"1px solid var(--border)",background:exp.category===c.id?c.color+"15":"var(--card)",color:"var(--text)",cursor:"pointer",fontSize:11,fontFamily:"Inter",fontWeight:600,display:"flex",alignItems:"center",gap:5}}>

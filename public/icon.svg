@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E5BD6"/>
+      <stop offset="100%" stop-color="#0F2F8A"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" fill="url(#g)"/>
+  <!-- Sparkle top-right -->
+  <path d="M418,58 C419.5,76 428,84.5 446,86 C428,87.5 419.5,96 418,114 C416.5,96 408,87.5 390,86 C408,84.5 416.5,76 418,58 Z" fill="white" opacity="0.5"/>
+  <!-- Sparkle bottom-left -->
+  <path d="M88,388 C89,401 95,407 108,408 C95,409 89,415 88,428 C87,415 81,409 68,408 C81,407 87,401 88,388 Z" fill="white" opacity="0.4"/>
+  <!-- Sparkle small top-left -->
+  <path d="M104,118 C104.7,127 108,130.3 117,131 C108,131.7 104.7,135 104,144 C103.3,135 100,131.7 91,131 C100,130.3 103.3,127 104,118 Z" fill="white" opacity="0.35"/>
+  <!-- Sparkle small bottom-right -->
+  <path d="M400,368 C400.6,375 403.4,377.8 410,378.4 C403.4,379 400.6,381.8 400,388.8 C399.4,381.8 396.6,379 390,378.4 C396.6,377.8 399.4,375 400,368 Z" fill="white" opacity="0.3"/>
+  <!-- Airplane centered -->
+  <text x="256" y="278" text-anchor="middle" dominant-baseline="middle" font-size="230" fill="white" opacity="0.95">✈</text>
+  <!-- App label -->
+  <text x="256" y="432" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="44" font-weight="800" fill="white" opacity="0.72" letter-spacing="4">TRIPS</text>
+</svg>
