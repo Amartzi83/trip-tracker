@@ -1217,6 +1217,90 @@ export default function App(){
   /* ═══════ TRIP SCREEN ═══════ */
   if(screen==="trip"&&trip){
 
+    /* ══ PACKING LIST ══ */
+    if(sub==="packing"){
+      const PACK_CATS=[
+        {id:"docs",label:"📋 מסמכים",color:"#1E5BD6"},
+        {id:"clothing",label:"👕 ביגוד",color:"#686DE0"},
+        {id:"health",label:"💊 בריאות ורפואה",color:"#00B894"},
+        {id:"electronics",label:"🔌 אלקטרוניקה",color:"#f0932b"},
+        {id:"toiletries",label:"🧴 טיפוח",color:"#e84393"},
+        {id:"general",label:"🎒 כללי",color:"#22A6B3"},
+      ];
+      const DEFAULT_ITEMS=[
+        {cat:"docs",text:"דרכון"},{cat:"docs",text:"ויזה (אם נדרשת)"},{cat:"docs",text:"כרטיסי טיסה (דיגיטל/הדפסה)"},{cat:"docs",text:"ביטוח נסיעות"},{cat:"docs",text:"כרטיסי אשראי (2 לפחות)"},{cat:"docs",text:"מזומן במטבע מקומי"},{cat:"docs",text:"רישיון נהיגה"},{cat:"docs",text:"צילום דרכון (גיבוי)"},
+        {cat:"clothing",text:"חולצות (5-7)"},{cat:"clothing",text:"מכנסיים / שורטס"},{cat:"clothing",text:"תחתונים וגרביים"},{cat:"clothing",text:"נעליים נוחות"},{cat:"clothing",text:"כפכפים"},{cat:"clothing",text:"בגד ים"},{cat:"clothing",text:"מעיל / סוודר"},{cat:"clothing",text:"כובע שמש"},{cat:"clothing",text:"פיג'מה"},
+        {cat:"health",text:"תרופות אישיות"},{cat:"health",text:"משכך כאבים (אדוויל / אקמול)"},{cat:"health",text:"תרופות לשלשול"},{cat:"health",text:"קרם הגנה SPF 50+"},{cat:"health",text:"תרסיס נגד יתושים"},{cat:"health",text:"פלסטרים + חבישות"},{cat:"health",text:"תרופות לבחילה (טיסה/ים)"},{cat:"health",text:"אנטיביוטיקה (לפי צורך)"},
+        {cat:"electronics",text:"טלפון + מטען"},{cat:"electronics",text:"פאוור בנק"},{cat:"electronics",text:"אוזניות"},{cat:"electronics",text:"אדפטור / ממיר שקעים"},{cat:"electronics",text:"כבל USB-C"},{cat:"electronics",text:"מצלמה + מטען"},{cat:"electronics",text:"כרטיס זיכרון (SD)"},
+        {cat:"toiletries",text:"מברשת שיניים + משחה"},{cat:"toiletries",text:"שמפו + מרכך"},{cat:"toiletries",text:"סבון גוף"},{cat:"toiletries",text:"מגלח"},{cat:"toiletries",text:"דאודורנט"},{cat:"toiletries",text:"קרם לחות"},{cat:"toiletries",text:"מגבת מיקרופייבר"},
+        {cat:"general",text:"תיק גב קטן (לטיולים יומיים)"},{cat:"general",text:"בקבוק מים (ניתן למילוי)"},{cat:"general",text:"מנעול למזוודה"},{cat:"general",text:"שקיות זיפלוק"},{cat:"general",text:"ספר / קינדל"},{cat:"general",text:"אטמי אוזניים"},{cat:"general",text:"מסכת שינה"},{cat:"general",text:"כרית צוואר (לטיסה)"},{cat:"general",text:"מטריה קטנה"},
+      ];
+      const packing=trip.packing||(()=>{const items=DEFAULT_ITEMS.map(i=>({...i,id:gid(),checked:false,custom:false}));setTrips(p=>p.map(t=>t.id===activeTrip?{...t,packing:items}:t));return items;})();
+      const [packInput,setPackInput]=useState("");const [packCat,setPackCat]=useState("general");const [packFilter,setPackFilter]=useState("all");
+      function toggleItem(id){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,packing:(t.packing||[]).map(i=>i.id===id?{...i,checked:!i.checked}:i)}:t));}
+      function addCustom(){if(!packInput.trim())return;const item={id:gid(),text:packInput.trim(),cat:packCat,checked:false,custom:true};setTrips(p=>p.map(t=>t.id===activeTrip?{...t,packing:[...(t.packing||[]),item]}:t));setPackInput("");}
+      function removeItem(id){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,packing:(t.packing||[]).filter(i=>i.id!==id)}:t));}
+      function resetList(){if(window.confirm("לאפס את כל הרשימה?")){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,packing:DEFAULT_ITEMS.map(i=>({...i,id:gid(),checked:false,custom:false}))}:t));}}
+      const checkedCount=packing.filter(i=>i.checked).length;
+      const total=packing.length;
+      const displayed=packFilter==="done"?packing.filter(i=>i.checked):packFilter==="todo"?packing.filter(i=>!i.checked):packing;
+      return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 100px"}}><style>{css}</style>{toastEl}
+        <div style={{maxWidth:480,margin:"0 auto"}}>
+          <button onClick={()=>setSub(null)} style={BK}><ChevronLeft size={18}/>חזרה</button>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",margin:"16px 0 6px"}}>
+            <h2 style={{fontSize:22,fontWeight:800,display:"flex",alignItems:"center",gap:8}}>🎒 רשימת ציוד</h2>
+            <button onClick={resetList} style={{fontSize:11,color:"var(--text2)",background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontFamily:"Heebo,system-ui"}}>איפוס</button>
+          </div>
+          {/* Progress */}
+          <div style={{...C,marginBottom:16,padding:"14px 18px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <span style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{checkedCount} מתוך {total} פריטים</span>
+              <span style={{fontSize:12,color:"var(--accent)",fontWeight:700}}>{total?Math.round(checkedCount/total*100):0}%</span>
+            </div>
+            <div style={{height:8,borderRadius:4,background:"var(--border)",overflow:"hidden"}}>
+              <div style={{height:"100%",borderRadius:4,width:`${total?checkedCount/total*100:0}%`,background:"linear-gradient(90deg,#1E5BD6,#3FB5E8)",transition:"width .3s"}}/>
+            </div>
+          </div>
+          {/* Filter */}
+          <div style={{display:"flex",gap:6,marginBottom:16}}>
+            {[["all","הכל"],["todo","עדיין חסר"],["done","נארז ✓"]].map(([v,l])=>(
+              <button key={v} onClick={()=>setPackFilter(v)} style={{flex:1,padding:"7px 0",borderRadius:10,border:packFilter===v?"2px solid var(--accent)":"1px solid var(--border)",background:packFilter===v?"rgba(30,91,214,0.08)":"var(--card)",fontSize:12,fontWeight:700,color:packFilter===v?"var(--accent)":"var(--text2)",cursor:"pointer",fontFamily:"Heebo,system-ui"}}>{l}</button>
+            ))}
+          </div>
+          {/* Items by category */}
+          {PACK_CATS.map(cat=>{
+            const items=displayed.filter(i=>i.cat===cat.id);
+            if(!items.length)return null;
+            return(<div key={cat.id} style={{marginBottom:18}}>
+              <div style={{fontSize:13,fontWeight:800,color:cat.color,marginBottom:8,display:"flex",alignItems:"center",gap:6}}>{cat.label}<span style={{fontSize:11,color:"var(--text2)",fontWeight:500}}>({items.filter(i=>i.checked).length}/{items.length})</span></div>
+              {items.map(item=>(
+                <div key={item.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:"var(--card)",borderRadius:14,border:"1px solid var(--border)",marginBottom:6,opacity:item.checked?.6:1,transition:"opacity .2s"}}>
+                  <button onClick={()=>toggleItem(item.id)} style={{width:24,height:24,borderRadius:7,border:item.checked?`2px solid ${cat.color}`:"2px solid var(--border)",background:item.checked?cat.color:"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,transition:"all .15s"}}>
+                    {item.checked&&<svg width="13" height="10" viewBox="0 0 13 10"><path d="M1 5l3.5 3.5L12 1" stroke="#fff" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                  </button>
+                  <span style={{flex:1,fontSize:14,fontWeight:500,color:"var(--text)",textDecoration:item.checked?"line-through":"none"}}>{item.text}</span>
+                  {item.custom&&<button onClick={()=>removeItem(item.id)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--text2)",padding:2,display:"flex",opacity:.5}}><X size={14}/></button>}
+                </div>
+              ))}
+            </div>);
+          })}
+          {/* Add custom */}
+          <div style={{...C,marginTop:8}}>
+            <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:10}}>הוסף פריט</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:10}}>
+              {PACK_CATS.map(cat=>(
+                <button key={cat.id} onClick={()=>setPackCat(cat.id)} style={{padding:"5px 10px",borderRadius:9,border:packCat===cat.id?`2px solid ${cat.color}`:"1px solid var(--border)",background:packCat===cat.id?cat.color+"18":"var(--bg)",fontSize:11,fontWeight:600,cursor:"pointer",color:packCat===cat.id?cat.color:"var(--text2)",fontFamily:"Heebo,system-ui"}}>{cat.label}</button>
+              ))}
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <input style={{...I,flex:1}} placeholder="פריט חדש..." value={packInput} onChange={e=>setPackInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")addCustom();}}/>
+              <button onClick={addCustom} style={{width:48,height:48,borderRadius:14,border:"none",background:"var(--accent)",color:"#fff",fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Plus size={20}/></button>
+            </div>
+          </div>
+        </div>
+      </div>);
+    }
+
     if(sub==="addExpense"||sub==="editExpense"){
       const isE=sub==="editExpense";const exp=isE?editExp:newExp;const setE=isE?setEditExp:setNewExp;
       return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 100px"}}><style>{css}</style>{toastEl}
@@ -1409,7 +1493,7 @@ export default function App(){
           <div style={{position:"relative"}}>
             <button onClick={()=>setMenuOpen(!menuOpen)} style={{background:"none",border:"none",cursor:"pointer",padding:8}}><MoreVertical size={20} color="var(--text2)"/></button>
             {menuOpen&&<><div onClick={()=>setMenuOpen(false)} style={{position:"fixed",top:0,left:0,right:0,bottom:0,zIndex:60}}/><div style={{position:"absolute",top:"100%",right:0,width:230,background:"rgba(20,24,32,0.98)",border:"1px solid var(--border)",borderRadius:18,boxShadow:"0 12px 40px rgba(0,0,0,.6)",zIndex:70,overflow:"hidden",backdropFilter:"blur(30px)",animation:"fadeUp .15s"}}>
-              {[{Icon:UserPlus,l:"Add Friend",a:()=>{setSub("addFriend");setMenuOpen(false)}},{Icon:Pencil,l:"Edit Trip",a:()=>{setEditTripForm({name:trip.name,country:trip.country,budget:trip.budget,currency:trip.currency,startDate:trip.startDate,endDate:trip.endDate});setSub("editTrip");setMenuOpen(false)}},{Icon:FileText,l:"Documents",a:()=>{setTab("files");setSub(null);setMenuOpen(false)}},{Icon:Download,l:"Export CSV",a:()=>{setSub("exportView");setMenuOpen(false)}},{Icon:Share2,l:"Share",a:()=>{setSub("shareView");setMenuOpen(false)}},{Icon:Settings,l:"Settings",a:()=>{setSub("settings");setMenuOpen(false)}}].map(({Icon,l,a},i)=>
+              {[{Icon:UserPlus,l:"Add Friend",a:()=>{setSub("addFriend");setMenuOpen(false)}},{Icon:Pencil,l:"Edit Trip",a:()=>{setEditTripForm({name:trip.name,country:trip.country,budget:trip.budget,currency:trip.currency,startDate:trip.startDate,endDate:trip.endDate});setSub("editTrip");setMenuOpen(false)}},{Icon:FileText,l:"Documents",a:()=>{setTab("files");setSub(null);setMenuOpen(false)}},{Icon:ShoppingBag,l:"רשימת ציוד",a:()=>{setSub("packing");setMenuOpen(false)}},{Icon:Download,l:"Export CSV",a:()=>{setSub("exportView");setMenuOpen(false)}},{Icon:Share2,l:"Share",a:()=>{setSub("shareView");setMenuOpen(false)}},{Icon:Settings,l:"Settings",a:()=>{setSub("settings");setMenuOpen(false)}}].map(({Icon,l,a},i)=>
                 <button key={i} onClick={a} style={{width:"100%",padding:"14px 18px",background:"none",border:"none",borderTop:i?"1px solid var(--border)":"none",color:"#fff",cursor:"pointer",fontFamily:"Heebo,system-ui",fontSize:14,fontWeight:500,textAlign:"left",display:"flex",alignItems:"center",gap:12}}><Icon size={18} color="rgba(255,255,255,0.55)"/>{l}</button>)}
             </div></>}</div></div>
 
