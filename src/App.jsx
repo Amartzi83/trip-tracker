@@ -323,7 +323,7 @@ export default function App(){
 
   /* ═══════ TAB BAR ═══════ */
   function TabBar(){
-    const tabs=[{id:"entries",Icon:Receipt,l:"הוצאות"},{id:"stats",Icon:TrendingUp,l:"סטטיסטיקה"},{id:"xe",Icon:ArrowLeftRight,l:"המרה"},{id:"translate",Icon:Globe,l:"תרגום"},{id:"discover",Icon:Globe2,l:"גלה"}];
+    const tabs=[{id:"entries",Icon:Receipt,l:"הוצאות"},{id:"stats",Icon:TrendingUp,l:"סטטיסטיקה"},{id:"xe",Icon:ArrowLeftRight,l:"המרה"},{id:"translate",Icon:Globe,l:"תרגום"},{id:"files",Icon:FileText,l:"קבצים"}];
     return(<div style={{position:"fixed",bottom:0,left:0,right:0,background:"#FFFFFF",borderTop:"1px solid var(--border)",display:"flex",zIndex:50,paddingBottom:"env(safe-area-inset-bottom)",boxShadow:"0 -2px 12px rgba(40,60,140,0.05)"}}>
       {tabs.map(({id,Icon,l})=><button key={id} onClick={()=>{setTab(id);setSub(null)}} style={{flex:1,padding:"10px 0 8px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,color:tab===id?"#1E5BD6":"#A8AEC0",transition:"all .2s"}}>
         <Icon size={20} strokeWidth={tab===id?2.5:1.5}/><span style={{fontSize:9,fontWeight:tab===id?800:500,letterSpacing:"0.3px"}}>{l}</span>
@@ -1522,41 +1522,102 @@ export default function App(){
       </div><TabBar/></div>);
     }
 
-    /* ═══ DISCOVER ═══ */
-    if(tab==="discover"){
-      const dest=trip.country||"";
-      const q=encodeURIComponent(dest);
-      const DISC=[
-        {name:"Google Maps",url:`https://www.google.com/maps/search/${q}`,Icon:Map,color:"#4285F4",desc:"Navigate & explore"},
-        {name:"TripAdvisor",url:`https://www.tripadvisor.com/Search?q=${q}`,Icon:Star,color:"#00A680",desc:"Reviews & top attractions"},
-        {name:"Booking.com",url:`https://www.booking.com/searchresults.html?ss=${q}`,Icon:Hotel,color:"#003580",desc:"Hotels & stays"},
-        {name:"Airbnb",url:`https://www.airbnb.com/s/${q}`,Icon:Palmtree,color:"#FF5A5F",desc:"Apartments & unique stays"},
-        {name:"Flights",url:`https://www.google.com/travel/flights`,Icon:Plane,color:"#686DE0",desc:"Find cheap flights"},
-        {name:"Restaurants",url:`https://www.google.com/maps/search/restaurants+in+${q}`,Icon:Utensils,color:"#FF6B6B",desc:"Best food nearby"},
-        {name:"Attractions",url:`https://www.google.com/maps/search/tourist+attractions+in+${q}`,Icon:Landmark,color:"#E17055",desc:"Must-see sights"},
-        {name:"YouTube",url:`https://www.youtube.com/results?search_query=${q}+travel+guide`,Icon:Camera,color:"#FF0000",desc:"Video travel guides"},
-        {name:"Weather",url:`https://www.weather.com/weather/today/l/${q}`,Icon:Sun,color:"#FFC107",desc:"Local weather forecast"},
-        {name:"Translate",url:`https://translate.google.com/?sl=auto&tl=en`,Icon:Globe,color:"#00B894",desc:"Google Translate"},
-        {name:"Cost of Living",url:`https://www.numbeo.com/cost-of-living/in/${dest.replace(/ /g,"-")}`,Icon:DollarSign,color:"#55E6C1",desc:"Budget & prices guide"},
-        {name:"Directions",url:`https://www.google.com/maps/dir/?api=1&destination=${q}`,Icon:Navigation,color:"#A29BFE",desc:"Get directions"},
+    /* ═══ FILES ═══ */
+    if(tab==="files"){
+      const files=trip.files||[];
+      const FILE_CATS=[
+        {id:"tickets",label:"🎫 כרטיסים",color:"#686DE0"},
+        {id:"bookings",label:"🏨 אישורי לינה",color:"#0097e6"},
+        {id:"flights",label:"✈️ טיסות",color:"#6c5ce7"},
+        {id:"insurance",label:"💊 ביטוח ובריאות",color:"#00B894"},
+        {id:"documents",label:"📄 מסמכים",color:"#f0932b"},
+        {id:"photos",label:"📷 תמונות",color:"#e84393"},
+        {id:"links",label:"🔗 קישורים",color:"#3FB5E8"},
+        {id:"other",label:"📁 אחר",color:"#B2BEC3"},
       ];
-      return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"16px 16px 100px"}}><style>{css}</style>{toastEl}<div style={{maxWidth:480,margin:"0 auto"}}>
-        <h2 style={{fontSize:22,fontWeight:800,marginBottom:4,display:"flex",alignItems:"center",gap:8}}><Globe2 size={22} style={{color:"var(--accent)"}}/>Discover {dest}</h2>
-        <p style={{fontSize:11,color:"var(--text2)",marginBottom:20}}>Travel resources · No sign-in required</p>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-          {DISC.map(({name,url,Icon,color,desc},i)=>(
-            <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-              style={{...C,padding:"16px 14px",textDecoration:"none",display:"flex",flexDirection:"column",gap:8,borderColor:`${color}22`,animation:`fadeUp .3s ease ${i*0.03}s both`}}>
-              <div style={{width:40,height:40,borderRadius:13,background:`${color}22`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                <Icon size={20} color={color}/>
-              </div>
-              <div style={{fontWeight:700,fontSize:13,color:"var(--text)"}}>{name}</div>
-              <div style={{fontSize:10,color:"var(--text2)",lineHeight:1.4}}>{desc}</div>
-              <div style={{display:"flex",alignItems:"center",gap:3,fontSize:10,color,fontWeight:600}}>Open <ExternalLink size={10}/></div>
-            </a>
+      function addFile(e){
+        const f=e.target.files[0];if(!f)return;
+        const maxMB=5;
+        if(f.size>maxMB*1024*1024){show(`קובץ גדול מדי (מקסימום ${maxMB}MB)`);return;}
+        const reader=new FileReader();
+        reader.onload=ev=>{
+          const newFile={id:gid(),name:f.name,type:f.type,size:f.size,data:ev.target.result,category:docCat,addedAt:new Date().toISOString().slice(0,10)};
+          setTrips(p=>p.map(t=>t.id===activeTrip?{...t,files:[...(t.files||[]),newFile]}:t));
+          show("קובץ נוסף!");
+        };
+        reader.readAsDataURL(f);
+        e.target.value="";
+      }
+      function delFile(fid){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,files:(t.files||[]).filter(f=>f.id!==fid)}:t));show("נמחק");}
+      function openFile(f){
+        if(f.link){window.open(f.link,"_blank");return;}
+        const a=document.createElement("a");a.href=f.data;a.download=f.name;a.click();
+      }
+      function fmtSize(b){if(b<1024)return b+"B";if(b<1024*1024)return(b/1024).toFixed(0)+"KB";return(b/1024/1024).toFixed(1)+"MB";}
+      function fileIcon(type){
+        if(!type)return"🔗";
+        if(type.startsWith("image/"))return"🖼️";
+        if(type==="application/pdf")return"📄";
+        if(type.includes("word"))return"📝";
+        if(type.includes("excel")||type.includes("sheet"))return"📊";
+        return"📁";
+      }
+      const byCat=FILE_CATS.map(cat=>({...cat,items:files.filter(f=>f.category===cat.id)})).filter(cat=>cat.items.length>0);
+      return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"16px 16px 100px"}}><style>{css}</style>{toastEl}
+        <input ref={fileInputRef} type="file" style={{display:"none"}} accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" onChange={addFile}/>
+        <div style={{maxWidth:480,margin:"0 auto"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+            <h2 style={{fontSize:22,fontWeight:800,display:"flex",alignItems:"center",gap:8}}><FileText size={22} style={{color:"var(--accent)"}}/>קבצי הטיול</h2>
+            <span style={{fontSize:12,color:"var(--text2)"}}>{files.length} קבצים</span>
+          </div>
+
+          {/* Upload section */}
+          <div style={{...C,marginBottom:20}}>
+            <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:12}}>הוסף קובץ</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:12}}>
+              {FILE_CATS.map(cat=>(
+                <button key={cat.id} onClick={()=>setDocCat(cat.id)}
+                  style={{padding:"6px 10px",borderRadius:10,border:docCat===cat.id?`2px solid var(--accent)`:"1px solid var(--border)",background:docCat===cat.id?"rgba(30,91,214,0.08)":"var(--bg)",fontSize:11,fontWeight:600,cursor:"pointer",color:docCat===cat.id?"var(--accent)":"var(--text2)",fontFamily:"Heebo,system-ui"}}>
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+            <button onClick={()=>fileInputRef.current?.click()} style={{...B1,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+              <Upload size={18}/>העלה קובץ <span style={{opacity:.7,fontSize:12}}>(תמונה / PDF / מסמך · עד 5MB)</span>
+            </button>
+          </div>
+
+          {/* File list by category */}
+          {files.length===0&&(
+            <div style={{textAlign:"center",padding:"50px 20px",color:"var(--text2)"}}>
+              <div style={{fontSize:48,marginBottom:12}}>📂</div>
+              <p style={{fontWeight:700,fontSize:16,color:"var(--text)",marginBottom:6}}>אין קבצים עדיין</p>
+              <p style={{fontSize:13}}>העלה כרטיסי טיסה, אישורי מלון, תמונות ועוד</p>
+            </div>
+          )}
+          {byCat.map(cat=>(
+            <div key={cat.id} style={{marginBottom:20}}>
+              <div style={{fontSize:13,fontWeight:800,color:"var(--text)",marginBottom:10}}>{cat.label}</div>
+              {cat.items.map(f=>(
+                <div key={f.id} style={{...C,padding:"12px 14px",marginBottom:8,display:"flex",alignItems:"center",gap:12}}>
+                  {f.type?.startsWith("image/")&&f.data
+                    ?<img src={f.data} alt={f.name} style={{width:44,height:44,borderRadius:10,objectFit:"cover",flexShrink:0}}/>
+                    :<div style={{width:44,height:44,borderRadius:10,background:"var(--bg)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,flexShrink:0,border:"1px solid var(--border)"}}>{fileIcon(f.type)}</div>
+                  }
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontWeight:700,fontSize:13,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</div>
+                    <div style={{fontSize:11,color:"var(--text2)",marginTop:2}}>{f.addedAt}{f.size?" · "+fmtSize(f.size):""}</div>
+                  </div>
+                  <div style={{display:"flex",gap:6,flexShrink:0}}>
+                    <button onClick={()=>openFile(f)} style={{width:34,height:34,borderRadius:10,border:"1px solid var(--border)",background:"var(--bg)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><Download size={15} color="var(--accent)"/></button>
+                    <button onClick={()=>delFile(f.id)} style={{width:34,height:34,borderRadius:10,border:"1px solid var(--border)",background:"var(--bg)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><Trash2 size={15} color="var(--red)"/></button>
+                  </div>
+                </div>
+              ))}
+            </div>
           ))}
         </div>
-      </div><TabBar/></div>);
+      <TabBar/></div>);
     }
   }
 
