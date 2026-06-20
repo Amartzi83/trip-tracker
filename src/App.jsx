@@ -1309,7 +1309,8 @@ export default function App(){
       </div></div>
     </div><TabBar/></div>);}
 
-    if(sub==="docs"){
+    if(sub==="docs"){setTab("files");setSub(null);return null;}
+    if(sub==="docs_old_unused"){
       const DOC_CATS=[
         {id:"flight",name:"Flight",Icon:Plane,color:"#686DE0"},
         {id:"insurance",name:"Insurance",Icon:Shield,color:"#74B9FF"},
@@ -1408,7 +1409,7 @@ export default function App(){
           <div style={{position:"relative"}}>
             <button onClick={()=>setMenuOpen(!menuOpen)} style={{background:"none",border:"none",cursor:"pointer",padding:8}}><MoreVertical size={20} color="var(--text2)"/></button>
             {menuOpen&&<><div onClick={()=>setMenuOpen(false)} style={{position:"fixed",top:0,left:0,right:0,bottom:0,zIndex:60}}/><div style={{position:"absolute",top:"100%",right:0,width:230,background:"rgba(20,24,32,0.98)",border:"1px solid var(--border)",borderRadius:18,boxShadow:"0 12px 40px rgba(0,0,0,.6)",zIndex:70,overflow:"hidden",backdropFilter:"blur(30px)",animation:"fadeUp .15s"}}>
-              {[{Icon:UserPlus,l:"Add Friend",a:()=>{setSub("addFriend");setMenuOpen(false)}},{Icon:Pencil,l:"Edit Trip",a:()=>{setEditTripForm({name:trip.name,country:trip.country,budget:trip.budget,currency:trip.currency,startDate:trip.startDate,endDate:trip.endDate});setSub("editTrip");setMenuOpen(false)}},{Icon:FileText,l:"Documents",a:()=>{setSub("docs");setMenuOpen(false)}},{Icon:Download,l:"Export CSV",a:()=>{setSub("exportView");setMenuOpen(false)}},{Icon:Share2,l:"Share",a:()=>{setSub("shareView");setMenuOpen(false)}},{Icon:Settings,l:"Settings",a:()=>{setSub("settings");setMenuOpen(false)}}].map(({Icon,l,a},i)=>
+              {[{Icon:UserPlus,l:"Add Friend",a:()=>{setSub("addFriend");setMenuOpen(false)}},{Icon:Pencil,l:"Edit Trip",a:()=>{setEditTripForm({name:trip.name,country:trip.country,budget:trip.budget,currency:trip.currency,startDate:trip.startDate,endDate:trip.endDate});setSub("editTrip");setMenuOpen(false)}},{Icon:FileText,l:"Documents",a:()=>{setTab("files");setSub(null);setMenuOpen(false)}},{Icon:Download,l:"Export CSV",a:()=>{setSub("exportView");setMenuOpen(false)}},{Icon:Share2,l:"Share",a:()=>{setSub("shareView");setMenuOpen(false)}},{Icon:Settings,l:"Settings",a:()=>{setSub("settings");setMenuOpen(false)}}].map(({Icon,l,a},i)=>
                 <button key={i} onClick={a} style={{width:"100%",padding:"14px 18px",background:"none",border:"none",borderTop:i?"1px solid var(--border)":"none",color:"#fff",cursor:"pointer",fontFamily:"Heebo,system-ui",fontSize:14,fontWeight:500,textAlign:"left",display:"flex",alignItems:"center",gap:12}}><Icon size={18} color="rgba(255,255,255,0.55)"/>{l}</button>)}
             </div></>}</div></div>
 
@@ -1524,96 +1525,83 @@ export default function App(){
 
     /* ═══ FILES ═══ */
     if(tab==="files"){
-      const files=trip.files||[];
       const FILE_CATS=[
-        {id:"tickets",label:"🎫 כרטיסים",color:"#686DE0"},
-        {id:"bookings",label:"🏨 אישורי לינה",color:"#0097e6"},
-        {id:"flights",label:"✈️ טיסות",color:"#6c5ce7"},
+        {id:"flight",label:"✈️ טיסות",color:"#686DE0"},
         {id:"insurance",label:"💊 ביטוח ובריאות",color:"#00B894"},
-        {id:"documents",label:"📄 מסמכים",color:"#f0932b"},
-        {id:"photos",label:"📷 תמונות",color:"#e84393"},
-        {id:"links",label:"🔗 קישורים",color:"#3FB5E8"},
+        {id:"hotel",label:"🏨 אישורי לינה",color:"#0097e6"},
+        {id:"transport",label:"🚗 תחבורה",color:"#22A6B3"},
         {id:"other",label:"📁 אחר",color:"#B2BEC3"},
       ];
-      function addFile(e){
+      const docs=trip.docs||[];
+      function handleFile(e){
         const f=e.target.files[0];if(!f)return;
-        const maxMB=5;
-        if(f.size>maxMB*1024*1024){show(`קובץ גדול מדי (מקסימום ${maxMB}MB)`);return;}
-        const reader=new FileReader();
-        reader.onload=ev=>{
-          const newFile={id:gid(),name:f.name,type:f.type,size:f.size,data:ev.target.result,category:docCat,addedAt:new Date().toISOString().slice(0,10)};
-          setTrips(p=>p.map(t=>t.id===activeTrip?{...t,files:[...(t.files||[]),newFile]}:t));
-          show("קובץ נוסף!");
+        if(f.size>5*1024*1024){show("קובץ גדול מדי (מקסימום 5MB)");e.target.value='';return;}
+        const r=new FileReader();
+        r.onload=ev=>{
+          setTrips(p=>p.map(t=>t.id===activeTrip?{...t,docs:[...(t.docs||[]),{id:gid(),name:f.name,mimeType:f.type,size:f.size,data:ev.target.result,cat:docCat,addedAt:new Date().toISOString().slice(0,10)}]}:t));
+          show("קובץ נוסף!");e.target.value='';
         };
-        reader.readAsDataURL(f);
-        e.target.value="";
+        r.readAsDataURL(f);
       }
-      function delFile(fid){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,files:(t.files||[]).filter(f=>f.id!==fid)}:t));show("נמחק");}
-      function openFile(f){
-        if(f.link){window.open(f.link,"_blank");return;}
-        const a=document.createElement("a");a.href=f.data;a.download=f.name;a.click();
-      }
-      function fmtSize(b){if(b<1024)return b+"B";if(b<1024*1024)return(b/1024).toFixed(0)+"KB";return(b/1024/1024).toFixed(1)+"MB";}
-      function fileIcon(type){
-        if(!type)return"🔗";
-        if(type.startsWith("image/"))return"🖼️";
-        if(type==="application/pdf")return"📄";
-        if(type.includes("word"))return"📝";
-        if(type.includes("excel")||type.includes("sheet"))return"📊";
-        return"📁";
-      }
-      const byCat=FILE_CATS.map(cat=>({...cat,items:files.filter(f=>f.category===cat.id)})).filter(cat=>cat.items.length>0);
+      function viewDoc(doc){const a=document.createElement('a');a.href=doc.data;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();document.body.removeChild(a);}
+      function dlDoc(doc){const a=document.createElement('a');a.href=doc.data;a.download=doc.name;document.body.appendChild(a);a.click();document.body.removeChild(a);}
+      function delDoc(id){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,docs:(t.docs||[]).filter(d=>d.id!==id)}:t));show("נמחק");}
+      function fSz(b){if(!b)return'';if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(0)+'KB';return(b/1048576).toFixed(1)+'MB';}
+      const byCat=FILE_CATS.map(cat=>({...cat,items:docs.filter(d=>d.cat===cat.id)})).filter(cat=>cat.items.length>0);
+      const uncategorized=docs.filter(d=>!FILE_CATS.find(c=>c.id===d.cat));
       return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"16px 16px 100px"}}><style>{css}</style>{toastEl}
-        <input ref={fileInputRef} type="file" style={{display:"none"}} accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" onChange={addFile}/>
+        <input ref={fileInputRef} type="file" onChange={handleFile} style={{display:"none"}}/>
         <div style={{maxWidth:480,margin:"0 auto"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
             <h2 style={{fontSize:22,fontWeight:800,display:"flex",alignItems:"center",gap:8}}><FileText size={22} style={{color:"var(--accent)"}}/>קבצי הטיול</h2>
-            <span style={{fontSize:12,color:"var(--text2)"}}>{files.length} קבצים</span>
+            <span style={{fontSize:12,color:"var(--text2)"}}>{docs.length} קבצים</span>
           </div>
-
-          {/* Upload section */}
+          {/* Upload */}
           <div style={{...C,marginBottom:20}}>
             <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:12}}>הוסף קובץ</div>
             <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:12}}>
               {FILE_CATS.map(cat=>(
                 <button key={cat.id} onClick={()=>setDocCat(cat.id)}
-                  style={{padding:"6px 10px",borderRadius:10,border:docCat===cat.id?`2px solid var(--accent)`:"1px solid var(--border)",background:docCat===cat.id?"rgba(30,91,214,0.08)":"var(--bg)",fontSize:11,fontWeight:600,cursor:"pointer",color:docCat===cat.id?"var(--accent)":"var(--text2)",fontFamily:"Heebo,system-ui"}}>
+                  style={{padding:"6px 12px",borderRadius:10,border:docCat===cat.id?`2px solid ${cat.color}`:"1px solid var(--border)",background:docCat===cat.id?cat.color+"18":"var(--bg)",fontSize:11,fontWeight:600,cursor:"pointer",color:docCat===cat.id?cat.color:"var(--text2)",fontFamily:"Heebo,system-ui",transition:"all .15s"}}>
                   {cat.label}
                 </button>
               ))}
             </div>
             <button onClick={()=>fileInputRef.current?.click()} style={{...B1,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-              <Upload size={18}/>העלה קובץ <span style={{opacity:.7,fontSize:12}}>(תמונה / PDF / מסמך · עד 5MB)</span>
+              <Upload size={18}/>העלה קובץ<span style={{opacity:.7,fontSize:12,marginRight:4}}> · תמונה / PDF / מסמך · עד 5MB</span>
             </button>
           </div>
-
-          {/* File list by category */}
-          {files.length===0&&(
+          {/* Empty state */}
+          {docs.length===0&&(
             <div style={{textAlign:"center",padding:"50px 20px",color:"var(--text2)"}}>
-              <div style={{fontSize:48,marginBottom:12}}>📂</div>
+              <div style={{fontSize:52,marginBottom:12}}>📂</div>
               <p style={{fontWeight:700,fontSize:16,color:"var(--text)",marginBottom:6}}>אין קבצים עדיין</p>
-              <p style={{fontSize:13}}>העלה כרטיסי טיסה, אישורי מלון, תמונות ועוד</p>
+              <p style={{fontSize:13}}>העלה כרטיסי טיסה, אישורי מלון, ביטוח ועוד</p>
             </div>
           )}
-          {byCat.map(cat=>(
+          {/* By category */}
+          {[...byCat,...(uncategorized.length?[{id:"_unc",label:"📁 אחר",color:"#B2BEC3",items:uncategorized}]:[])].map(cat=>(
             <div key={cat.id} style={{marginBottom:20}}>
               <div style={{fontSize:13,fontWeight:800,color:"var(--text)",marginBottom:10}}>{cat.label}</div>
-              {cat.items.map(f=>(
-                <div key={f.id} style={{...C,padding:"12px 14px",marginBottom:8,display:"flex",alignItems:"center",gap:12}}>
-                  {f.type?.startsWith("image/")&&f.data
-                    ?<img src={f.data} alt={f.name} style={{width:44,height:44,borderRadius:10,objectFit:"cover",flexShrink:0}}/>
-                    :<div style={{width:44,height:44,borderRadius:10,background:"var(--bg)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,flexShrink:0,border:"1px solid var(--border)"}}>{fileIcon(f.type)}</div>
+              {cat.items.map(doc=>{
+                const catDef=FILE_CATS.find(c=>c.id===doc.cat)||FILE_CATS[FILE_CATS.length-1];
+                const isImg=doc.mimeType?.startsWith('image/');
+                return(<div key={doc.id} style={{...C,marginBottom:8,display:"flex",alignItems:"center",gap:12,padding:"12px 14px"}}>
+                  {isImg
+                    ?<img src={doc.data} alt={doc.name} style={{width:46,height:46,borderRadius:11,objectFit:"cover",flexShrink:0}}/>
+                    :<div style={{width:46,height:46,borderRadius:13,background:`${catDef.color}20`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><FileText size={22} color={catDef.color}/></div>
                   }
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontWeight:700,fontSize:13,color:"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</div>
-                    <div style={{fontSize:11,color:"var(--text2)",marginTop:2}}>{f.addedAt}{f.size?" · "+fmtSize(f.size):""}</div>
+                    <div style={{fontWeight:700,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{doc.name}</div>
+                    <div style={{fontSize:11,color:"var(--text2)",marginTop:3}}>{fSz(doc.size)}{doc.addedAt?" · "+doc.addedAt:""}</div>
                   </div>
                   <div style={{display:"flex",gap:6,flexShrink:0}}>
-                    <button onClick={()=>openFile(f)} style={{width:34,height:34,borderRadius:10,border:"1px solid var(--border)",background:"var(--bg)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><Download size={15} color="var(--accent)"/></button>
-                    <button onClick={()=>delFile(f.id)} style={{width:34,height:34,borderRadius:10,border:"1px solid var(--border)",background:"var(--bg)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><Trash2 size={15} color="var(--red)"/></button>
+                    <button onClick={()=>viewDoc(doc)} style={{width:34,height:34,borderRadius:11,border:"1px solid var(--border)",background:"var(--card)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><Eye size={14} color="var(--accent)"/></button>
+                    <button onClick={()=>dlDoc(doc)} style={{width:34,height:34,borderRadius:11,border:"1px solid var(--border)",background:"var(--card)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><Download size={14} color="var(--text2)"/></button>
+                    <button onClick={()=>delDoc(doc.id)} style={{width:34,height:34,borderRadius:11,border:"1px solid rgba(255,71,87,.2)",background:"rgba(255,71,87,.06)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><Trash2 size={14} color="var(--red)"/></button>
                   </div>
-                </div>
-              ))}
+                </div>);
+              })}
             </div>
           ))}
         </div>
