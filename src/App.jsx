@@ -130,7 +130,7 @@ const COUNTRIES=[
 const COUNTRY_ISO=Object.fromEntries([...COUNTRIES.map(c=>[c.en,c.iso]),...COUNTRIES.map(c=>[c.he,c.iso])]);
 function isoToFlag(iso){if(!iso||iso.length!==2)return"🌍";return String.fromCodePoint(...iso.toUpperCase().split('').map(c=>0x1F1E6+c.charCodeAt(0)-65));}
 
-const LANGS=[{code:"en",name:"English",flag:"🇬🇧"},{code:"he",name:"Hebrew",flag:"🇮🇱"},{code:"th",name:"Thai",flag:"🇹🇭"},{code:"es",name:"Spanish",flag:"🇪🇸"},{code:"fr",name:"French",flag:"🇫🇷"},{code:"de",name:"German",flag:"🇩🇪"},{code:"it",name:"Italian",flag:"🇮🇹"},{code:"pt",name:"Portuguese",flag:"🇵🇹"},{code:"ja",name:"Japanese",flag:"🇯🇵"},{code:"zh",name:"Chinese",flag:"🇨🇳"},{code:"ko",name:"Korean",flag:"🇰🇷"},{code:"ar",name:"Arabic",flag:"🇸🇦"},{code:"tr",name:"Turkish",flag:"🇹🇷"},{code:"ru",name:"Russian",flag:"🇷🇺"},{code:"hi",name:"Hindi",flag:"🇮🇳"},{code:"vi",name:"Vietnamese",flag:"🇻🇳"},{code:"el",name:"Greek",flag:"🇬🇷"},{code:"nl",name:"Dutch",flag:"🇳🇱"}];
+const LANGS=[{code:"en",name:"English",flag:"🇬🇧"},{code:"he",name:"Hebrew",flag:"🇮🇱"},{code:"th",name:"Thai",flag:"🇹🇭"},{code:"es",name:"Spanish",flag:"🇪🇸"},{code:"fr",name:"French",flag:"🇫🇷"},{code:"de",name:"German",flag:"🇩🇪"},{code:"it",name:"Italian",flag:"🇮🇹"},{code:"pt",name:"Portuguese",flag:"🇵🇹"},{code:"ja",name:"Japanese",flag:"🇯🇵"},{code:"zh",name:"Chinese",flag:"🇨🇳"},{code:"ko",name:"Korean",flag:"🇰🇷"},{code:"ar",name:"Arabic",flag:"🇸🇦"},{code:"tr",name:"Turkish",flag:"🇹🇷"},{code:"ru",name:"Russian",flag:"🇷🇺"},{code:"hi",name:"Hindi",flag:"🇮🇳"},{code:"vi",name:"Vietnamese",flag:"🇻🇳"},{code:"el",name:"Greek",flag:"🇬🇷"},{code:"nl",name:"Dutch",flag:"🇳🇱"},{code:"ro",name:"Romanian",flag:"🇷🇴"}];
 const PHRASES=["How much does this cost?","Where is the bathroom?","Can I have the bill?","Thank you very much","Do you speak English?","I need help","Where is the nearest hospital?","How do I get to the airport?","I have a reservation","One ticket please","Can you recommend a restaurant?","I'm allergic to...","No spicy please","Water please","Can I pay by card?","I'm lost","Call the police","Where is the bus station?","How far is it?","Good morning"];
 
 function gid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
@@ -356,7 +356,7 @@ export default function App(){
   }
   function speak(text,lang){
     if(!text||!window.speechSynthesis)return;
-    const lm={en:"en-US",he:"he-IL",th:"th-TH",es:"es-ES",fr:"fr-FR",de:"de-DE",it:"it-IT",pt:"pt-PT",ja:"ja-JP",zh:"zh-CN",ko:"ko-KR",ar:"ar-SA",tr:"tr-TR",ru:"ru-RU",hi:"hi-IN",vi:"vi-VN",el:"el-GR",nl:"nl-NL"};
+    const lm={en:"en-US",he:"he-IL",th:"th-TH",es:"es-ES",fr:"fr-FR",de:"de-DE",it:"it-IT",pt:"pt-PT",ja:"ja-JP",zh:"zh-CN",ko:"ko-KR",ar:"ar-SA",tr:"tr-TR",ru:"ru-RU",hi:"hi-IN",vi:"vi-VN",el:"el-GR",nl:"nl-NL",ro:"ro-RO"};
     const langCode=lm[lang]||lang;
     window.speechSynthesis.cancel();
     const u=new SpeechSynthesisUtterance(text);
