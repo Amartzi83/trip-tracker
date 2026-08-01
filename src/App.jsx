@@ -39,6 +39,55 @@ const WEATHER_PRESETS=[
   {name:"אתונה, יוון",lat:37.9838,lon:23.7275},
   {name:"איסטנבול, טורקיה",lat:41.0082,lon:28.9784},
 ];
+// Hebrew city dictionary — makes Hebrew search reliable (the geocoding API often misses Hebrew spellings)
+const CITY_DB=[
+  {he:"בוקרשט",en:"Bucharest",lat:44.4268,lon:26.1025,c:"רומניה"},
+  {he:"בראשוב",en:"Brasov",lat:45.6580,lon:25.6012,c:"רומניה"},
+  {he:"קלוז'",en:"Cluj-Napoca",lat:46.7712,lon:23.6236,c:"רומניה"},
+  {he:"סיביו",en:"Sibiu",lat:45.7983,lon:24.1256,c:"רומניה"},
+  {he:"טימישוארה",en:"Timisoara",lat:45.7489,lon:21.2087,c:"רומניה"},
+  {he:"קונסטנצה",en:"Constanta",lat:44.1733,lon:28.6383,c:"רומניה"},
+  {he:"יאשי",en:"Iasi",lat:47.1585,lon:27.6014,c:"רומניה"},
+  {he:"בנגקוק",en:"Bangkok",lat:13.7563,lon:100.5018,c:"תאילנד"},
+  {he:"פטאיה",en:"Pattaya",lat:12.9236,lon:100.8825,c:"תאילנד"},
+  {he:"פוקט",en:"Phuket",lat:7.8804,lon:98.3923,c:"תאילנד"},
+  {he:"צ'יאנג מאי",en:"Chiang Mai",lat:18.7883,lon:98.9853,c:"תאילנד"},
+  {he:"קראבי",en:"Krabi",lat:8.0863,lon:98.9063,c:"תאילנד"},
+  {he:"קו סמוי",en:"Koh Samui",lat:9.5120,lon:100.0136,c:"תאילנד"},
+  {he:"חואה הין",en:"Hua Hin",lat:12.5684,lon:99.9577,c:"תאילנד"},
+  {he:"תל אביב",en:"Tel Aviv",lat:32.0853,lon:34.7818,c:"ישראל"},
+  {he:"ירושלים",en:"Jerusalem",lat:31.7683,lon:35.2137,c:"ישראל"},
+  {he:"אילת",en:"Eilat",lat:29.5577,lon:34.9519,c:"ישראל"},
+  {he:"חיפה",en:"Haifa",lat:32.7940,lon:34.9896,c:"ישראל"},
+  {he:"אתונה",en:"Athens",lat:37.9838,lon:23.7275,c:"יוון"},
+  {he:"סלוניקי",en:"Thessaloniki",lat:40.6401,lon:22.9444,c:"יוון"},
+  {he:"סנטוריני",en:"Santorini",lat:36.3932,lon:25.4615,c:"יוון"},
+  {he:"רודוס",en:"Rhodes",lat:36.4349,lon:28.2176,c:"יוון"},
+  {he:"מיקונוס",en:"Mykonos",lat:37.4467,lon:25.3289,c:"יוון"},
+  {he:"קורפו",en:"Corfu",lat:39.6243,lon:19.9217,c:"יוון"},
+  {he:"רומא",en:"Rome",lat:41.9028,lon:12.4964,c:"איטליה"},
+  {he:"מילאנו",en:"Milan",lat:45.4642,lon:9.1900,c:"איטליה"},
+  {he:"ונציה",en:"Venice",lat:45.4408,lon:12.3155,c:"איטליה"},
+  {he:"פירנצה",en:"Florence",lat:43.7696,lon:11.2558,c:"איטליה"},
+  {he:"נאפולי",en:"Naples",lat:40.8518,lon:14.2681,c:"איטליה"},
+  {he:"מדריד",en:"Madrid",lat:40.4168,lon:-3.7038,c:"ספרד"},
+  {he:"ברצלונה",en:"Barcelona",lat:41.3874,lon:2.1686,c:"ספרד"},
+  {he:"מלגה",en:"Malaga",lat:36.7213,lon:-4.4213,c:"ספרד"},
+  {he:"פריז",en:"Paris",lat:48.8566,lon:2.3522,c:"צרפת"},
+  {he:"ניס",en:"Nice",lat:43.7102,lon:7.2620,c:"צרפת"},
+  {he:"לונדון",en:"London",lat:51.5074,lon:-0.1278,c:"בריטניה"},
+  {he:"אמסטרדם",en:"Amsterdam",lat:52.3676,lon:4.9041,c:"הולנד"},
+  {he:"ברלין",en:"Berlin",lat:52.5200,lon:13.4050,c:"גרמניה"},
+  {he:"מינכן",en:"Munich",lat:48.1351,lon:11.5820,c:"גרמניה"},
+  {he:"פראג",en:"Prague",lat:50.0755,lon:14.4378,c:"צ'כיה"},
+  {he:"בודפשט",en:"Budapest",lat:47.4979,lon:19.0402,c:"הונגריה"},
+  {he:"וינה",en:"Vienna",lat:48.2082,lon:16.3738,c:"אוסטריה"},
+  {he:"ליסבון",en:"Lisbon",lat:38.7223,lon:-9.1393,c:"פורטוגל"},
+  {he:"אנטליה",en:"Antalya",lat:36.8969,lon:30.7133,c:"טורקיה"},
+  {he:"איסטנבול",en:"Istanbul",lat:41.0082,lon:28.9784,c:"טורקיה"},
+  {he:"ניו יורק",en:"New York",lat:40.7128,lon:-74.0060,c:'ארה"ב'},
+  {he:"דובאי",en:"Dubai",lat:25.2048,lon:55.2708,c:"איחוד האמירויות"},
+];
 const FR={USD:1,EUR:0.926,GBP:0.793,ILS:3.704,THB:35.71,JPY:149.3,TRY:32.26,INR:83.33,AUD:1.538,CAD:1.351,CHF:0.88,SEK:10.5};
 const COUNTRIES=[
   {en:"Thailand",he:"תאילנד",iso:"TH"},{en:"Israel",he:"ישראל",iso:"IL"},{en:"Greece",he:"יוון",iso:"GR"},
@@ -274,13 +323,30 @@ export default function App(){
   function cv(a,f,t){if(f===t)return a;return a/(rates[f]||1)*(rates[t]||1)}
   async function searchCity(q){
     setCitySearch(q);
-    if(q.trim().length<2){setCityResults([]);return;}
+    const query=q.trim();
+    if(query.length<2){setCityResults([]);return;}
+    // local Hebrew/English dictionary matches first (reliable for Hebrew)
+    const ql=query.toLowerCase();
+    const local=CITY_DB.filter(c=>c.he.includes(query)||c.en.toLowerCase().includes(ql))
+      .map(c=>({name:c.he,country:c.c,latitude:c.lat,longitude:c.lon}));
+    setCityResults(local);
     setCitySearching(true);
+    // query in Hebrew, and also fall back to the English name if we recognise it
+    const enGuess=CITY_DB.find(c=>c.he.includes(query))?.en;
+    const names=[...new Set([query,enGuess].filter(Boolean))];
     try{
-      const r=await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q.trim())}&count=6&language=he&format=json`);
-      const d=await r.json();
-      setCityResults(Array.isArray(d?.results)?d.results:[]);
-    }catch{setCityResults([]);}
+      let api=[];
+      for(const nm of names){
+        const r=await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(nm)}&count=6&language=he&format=json`);
+        const d=await r.json();
+        if(Array.isArray(d?.results))api=api.concat(d.results);
+      }
+      const merged=[...local];
+      for(const a of api){
+        if(!merged.some(m=>Math.abs(m.latitude-a.latitude)<0.3&&Math.abs(m.longitude-a.longitude)<0.3))merged.push(a);
+      }
+      setCityResults(merged.slice(0,8));
+    }catch{/* keep local results */}
     setCitySearching(false);
   }
   function pickCity(res){
