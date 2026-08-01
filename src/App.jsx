@@ -27,6 +27,17 @@ const CURRS=[
   {code:"ILS",symbol:"₪",name:"Shekel"},{code:"THB",symbol:"฿",name:"Baht"},{code:"JPY",symbol:"¥",name:"Yen"},
   {code:"TRY",symbol:"₺",name:"Lira"},{code:"INR",symbol:"₹",name:"Rupee"},{code:"AUD",symbol:"A$",name:"AUD"},
   {code:"CAD",symbol:"C$",name:"CAD"},{code:"CHF",symbol:"Fr",name:"Franc"},{code:"SEK",symbol:"kr",name:"Krona"},
+  {code:"RON",symbol:"lei",name:"Romanian Leu"},
+];
+const WEATHER_PRESETS=[
+  {name:"פטאיה, תאילנד",lat:12.9236,lon:100.8825},
+  {name:"בנגקוק, תאילנד",lat:13.7563,lon:100.5018},
+  {name:"פוקט, תאילנד",lat:7.8804,lon:98.3923},
+  {name:"צ'יאנג מאי, תאילנד",lat:18.7883,lon:98.9853},
+  {name:"תל אביב, ישראל",lat:32.0853,lon:34.7818},
+  {name:"בוקרשט, רומניה",lat:44.4268,lon:26.1025},
+  {name:"אתונה, יוון",lat:37.9838,lon:23.7275},
+  {name:"איסטנבול, טורקיה",lat:41.0082,lon:28.9784},
 ];
 const FR={USD:1,EUR:0.926,GBP:0.793,ILS:3.704,THB:35.71,JPY:149.3,TRY:32.26,INR:83.33,AUD:1.538,CAD:1.351,CHF:0.88,SEK:10.5};
 const COUNTRIES=[
@@ -127,6 +138,17 @@ export default function App(){
   const[extraCurrs,setExtraCurrs]=useState(()=>{try{const s=localStorage.getItem('tt_extra_currs');if(s)return JSON.parse(s);}catch{}return[];});
   const[showCurrPicker,setShowCurrPicker]=useState(false);
   const[homeTripId,setHomeTripId]=useState(()=>localStorage.getItem('tt_home_trip')||null);
+  const[homeWeather,setHomeWeather]=useState(()=>{try{const s=localStorage.getItem('tt_home_weather');if(s)return JSON.parse(s);}catch{}return{name:"פטאיה, תאילנד",lat:12.9236,lon:100.8825};});
+  const[homeRateFrom,setHomeRateFrom]=useState(()=>localStorage.getItem('tt_home_rate_from')||'USD');
+  const[homeRateTo,setHomeRateTo]=useState(()=>localStorage.getItem('tt_home_rate_to')||'THB');
+  const[weatherPicker,setWeatherPicker]=useState(false);
+  const[ratePicker,setRatePicker]=useState(false);
+  const[citySearch,setCitySearch]=useState("");
+  const[cityResults,setCityResults]=useState([]);
+  const[citySearching,setCitySearching]=useState(false);
+  const[packInput,setPackInput]=useState("");
+  const[packCat,setPackCat]=useState("general");
+  const[packFilter,setPackFilter]=useState("all");
   const[trFrom,setTrFrom]=useState("en");
   const[trTo,setTrTo]=useState("th");
   const[trText,setTrText]=useState("");
@@ -238,16 +260,34 @@ export default function App(){
 
   useEffect(()=>{try{localStorage.setItem('tt_extra_currs',JSON.stringify(extraCurrs))}catch{}},[extraCurrs]);
   useEffect(()=>{try{if(homeTripId)localStorage.setItem('tt_home_trip',homeTripId);else localStorage.removeItem('tt_home_trip')}catch{}},[homeTripId]);
+  useEffect(()=>{try{localStorage.setItem('tt_home_weather',JSON.stringify(homeWeather))}catch{}},[homeWeather]);
+  useEffect(()=>{try{localStorage.setItem('tt_home_rate_from',homeRateFrom);localStorage.setItem('tt_home_rate_to',homeRateTo)}catch{}},[homeRateFrom,homeRateTo]);
   useEffect(()=>{(async()=>{try{const r=await fetch("https://open.er-api.com/v6/latest/USD");const d=await r.json();if(d?.rates){setRates(d.rates);setRatesTime(new Date().toLocaleTimeString())}}catch{}})()},[]);
   useEffect(()=>{if(window.speechSynthesis){window.speechSynthesis.getVoices()}},[]);
   useEffect(()=>{
     if(screen!=="weatherScreen"&&screen!=="home")return;
     setPattayaLoading(true);
-    fetch("https://api.open-meteo.com/v1/forecast?latitude=12.9236&longitude=100.8825&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m&timezone=Asia/Bangkok")
+    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${homeWeather.lat}&longitude=${homeWeather.lon}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m&timezone=auto`)
       .then(r=>r.json()).then(d=>{if(d?.current)setPattayaWeather(d.current);}).catch(()=>{}).finally(()=>setPattayaLoading(false));
-  },[screen]);
+  },[screen,homeWeather]);
 
   function cv(a,f,t){if(f===t)return a;return a/(rates[f]||1)*(rates[t]||1)}
+  async function searchCity(q){
+    setCitySearch(q);
+    if(q.trim().length<2){setCityResults([]);return;}
+    setCitySearching(true);
+    try{
+      const r=await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q.trim())}&count=6&language=he&format=json`);
+      const d=await r.json();
+      setCityResults(Array.isArray(d?.results)?d.results:[]);
+    }catch{setCityResults([]);}
+    setCitySearching(false);
+  }
+  function pickCity(res){
+    const label=res.country&&res.country!==res.name?`${res.name}, ${res.country}`:res.name;
+    setHomeWeather({name:label,lat:res.latitude,lon:res.longitude});
+    setWeatherPicker(false);setCitySearch("");setCityResults([]);
+  }
   function speak(text,lang){
     if(!text||!window.speechSynthesis)return;
     const lm={en:"en-US",he:"he-IL",th:"th-TH",es:"es-ES",fr:"fr-FR",de:"de-DE",it:"it-IT",pt:"pt-PT",ja:"ja-JP",zh:"zh-CN",ko:"ko-KR",ar:"ar-SA",tr:"tr-TR",ru:"ru-RU",hi:"hi-IN",vi:"vi-VN",el:"el-GR",nl:"nl-NL"};
@@ -471,11 +511,11 @@ export default function App(){
           }
           const wd=pattayaWeather?wDescHome(pattayaWeather.weather_code):{emoji:"🌡️",desc:""};
           return(
-            <button onClick={()=>setScreen("weatherScreen")} style={{width:"100%",marginBottom:18,background:"rgba(255,255,255,0.18)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.28)",borderRadius:18,padding:"12px 16px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:"0 4px 16px rgba(0,0,0,0.1)",fontFamily:"Heebo,system-ui"}}>
+            <button onClick={()=>setWeatherPicker(true)} style={{width:"100%",marginBottom:18,background:"rgba(255,255,255,0.18)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.28)",borderRadius:18,padding:"12px 16px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:"0 4px 16px rgba(0,0,0,0.1)",fontFamily:"Heebo,system-ui"}}>
               <div style={{display:"flex",alignItems:"center",gap:10}}>
                 <span style={{fontSize:26}}>{wd.emoji}</span>
                 <div style={{textAlign:"right"}}>
-                  <div style={{fontSize:11,color:"rgba(255,255,255,0.8)",fontWeight:500,marginBottom:1}}>📍 פטאיה, תאילנד</div>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,0.8)",fontWeight:500,marginBottom:1}}>📍 {homeWeather.name}</div>
                   <div style={{fontSize:13,color:"#fff",fontWeight:600}}>{pattayaLoading?"טוען...":pattayaWeather?wd.desc:"—"}</div>
                 </div>
               </div>
@@ -495,37 +535,92 @@ export default function App(){
           );
         })()}
 
-        {/* Rate widget — glass style like weather */}
+        {/* Rate widget — glass style like weather (user-selectable pair) */}
         {(()=>{
-          const thb=rates['THB']||35.71;
-          const ils=rates['ILS']||3.704;
-          const usd100=Math.round(100*thb).toLocaleString();
-          const ils100=Math.round(100*(thb/ils)).toLocaleString();
+          const toSym=(CURRS.find(c=>c.code===homeRateTo)||{}).symbol||homeRateTo;
+          const fromSym=(CURRS.find(c=>c.code===homeRateFrom)||{}).symbol||homeRateFrom;
+          const sec=homeRateFrom==="ILS"?"USD":"ILS";
+          const secSym=(CURRS.find(c=>c.code===sec)||{}).symbol||sec;
+          const fmt=x=>x>=10?x.toFixed(1):x.toFixed(2);
+          const r1=cv(1,homeRateFrom,homeRateTo);
+          const r2=cv(1,sec,homeRateTo);
+          const from100=Math.round(cv(100,homeRateFrom,homeRateTo)).toLocaleString();
+          const sec100=Math.round(cv(100,sec,homeRateTo)).toLocaleString();
           return(
-            <button onClick={()=>setScreen("moneyScreen")} style={{width:"100%",marginBottom:18,background:"rgba(255,255,255,0.18)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.28)",borderRadius:18,padding:"12px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:0,boxShadow:"0 4px 16px rgba(0,0,0,0.1)",fontFamily:"Heebo,system-ui"}}>
+            <button onClick={()=>setRatePicker(true)} style={{width:"100%",marginBottom:18,background:"rgba(255,255,255,0.18)",backdropFilter:"blur(14px)",border:"1px solid rgba(255,255,255,0.28)",borderRadius:18,padding:"12px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:0,boxShadow:"0 4px 16px rgba(0,0,0,0.1)",fontFamily:"Heebo,system-ui"}}>
               <div style={{display:"flex",alignItems:"center",gap:8,flex:1}}>
                 <span style={{fontSize:22,flexShrink:0}}>💱</span>
                 <div style={{textAlign:"right"}}>
                   <div style={{fontSize:10,color:"rgba(255,255,255,0.8)",fontWeight:600,marginBottom:2}}>שער המרה עדכני</div>
-                  <div style={{fontSize:10,color:"rgba(255,255,255,0.7)"}}>1 USD = {(thb).toFixed(1)} ฿ &nbsp;·&nbsp; 1 ₪ = {(thb/ils).toFixed(1)} ฿</div>
+                  <div style={{fontSize:10,color:"rgba(255,255,255,0.7)"}}>1 {homeRateFrom} = {fmt(r1)} {toSym} &nbsp;·&nbsp; 1 {sec} = {fmt(r2)} {toSym}</div>
                 </div>
               </div>
               <div style={{width:1,height:36,background:"rgba(255,255,255,0.25)",margin:"0 12px",flexShrink:0}}/>
               <div style={{display:"flex",gap:14,alignItems:"center"}}>
                 <div style={{textAlign:"center"}}>
-                  <div style={{fontSize:9,color:"rgba(255,255,255,0.75)",marginBottom:1}}>100 $</div>
-                  <div style={{fontSize:16,fontWeight:900,color:"#fff",letterSpacing:"-0.5px"}}>{usd100}<span style={{fontSize:10,fontWeight:600}}>฿</span></div>
+                  <div style={{fontSize:9,color:"rgba(255,255,255,0.75)",marginBottom:1}}>100 {fromSym}</div>
+                  <div style={{fontSize:16,fontWeight:900,color:"#fff",letterSpacing:"-0.5px"}}>{from100}<span style={{fontSize:10,fontWeight:600}}>{toSym}</span></div>
                 </div>
                 <div style={{width:1,height:28,background:"rgba(255,255,255,0.2)",flexShrink:0}}/>
                 <div style={{textAlign:"center"}}>
-                  <div style={{fontSize:9,color:"rgba(255,255,255,0.75)",marginBottom:1}}>100 ₪</div>
-                  <div style={{fontSize:16,fontWeight:900,color:"#fff",letterSpacing:"-0.5px"}}>{ils100}<span style={{fontSize:10,fontWeight:600}}>฿</span></div>
+                  <div style={{fontSize:9,color:"rgba(255,255,255,0.75)",marginBottom:1}}>100 {secSym}</div>
+                  <div style={{fontSize:16,fontWeight:900,color:"#fff",letterSpacing:"-0.5px"}}>{sec100}<span style={{fontSize:10,fontWeight:600}}>{toSym}</span></div>
                 </div>
                 <ChevronRight size={13} color="rgba(255,255,255,0.6)"/>
               </div>
             </button>
           );
         })()}
+
+        {/* Weather city picker */}
+        {weatherPicker&&(
+          <div onClick={()=>setWeatherPicker(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",backdropFilter:"blur(4px)",zIndex:100,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
+            <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:480,background:"var(--card)",borderRadius:"24px 24px 0 0",padding:"20px 18px 32px",boxShadow:"0 -8px 40px rgba(0,0,0,0.3)",maxHeight:"80vh",overflowY:"auto"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+                <div style={{fontSize:18,fontWeight:800,display:"flex",alignItems:"center",gap:8}}><Cloud size={20} style={{color:"var(--accent)"}}/>בחר עיר למזג אוויר</div>
+                <button onClick={()=>setWeatherPicker(false)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--text2)"}}><X size={20}/></button>
+              </div>
+              <input autoFocus style={I} placeholder="חפש עיר... (בנגקוק, בוקרשט, אתונה)" value={citySearch} onChange={e=>searchCity(e.target.value)}/>
+              {citySearching&&<div style={{fontSize:12,color:"var(--text2)",padding:"10px 4px"}}>מחפש...</div>}
+              {cityResults.length>0&&<div style={{marginTop:10,display:"flex",flexDirection:"column",gap:6}}>
+                {cityResults.map((res,i)=>(
+                  <button key={i} onClick={()=>pickCity(res)} style={{textAlign:"right",padding:"12px 14px",borderRadius:14,border:"1px solid var(--border)",background:"var(--bg)",cursor:"pointer",fontFamily:"Heebo,system-ui",fontSize:14,fontWeight:600,color:"var(--text)"}}>
+                    📍 {res.name}{res.admin1?`, ${res.admin1}`:""} <span style={{color:"var(--text2)",fontWeight:400,fontSize:12}}>· {res.country}</span>
+                  </button>
+                ))}
+              </div>}
+              {!citySearch&&<div style={{marginTop:16}}>
+                <div style={{...L,marginBottom:8}}>ערים פופולריות</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                  {WEATHER_PRESETS.map(p=>(
+                    <button key={p.name} onClick={()=>{setHomeWeather({name:p.name,lat:p.lat,lon:p.lon});setWeatherPicker(false);}} style={{padding:"8px 14px",borderRadius:20,border:"1px solid var(--border)",background:homeWeather.name===p.name?"var(--accent)":"var(--bg)",color:homeWeather.name===p.name?"#fff":"var(--text)",cursor:"pointer",fontFamily:"Heebo,system-ui",fontSize:13,fontWeight:600}}>{p.name}</button>
+                  ))}
+                </div>
+              </div>}
+            </div>
+          </div>
+        )}
+
+        {/* Rate pair picker */}
+        {ratePicker&&(
+          <div onClick={()=>setRatePicker(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",backdropFilter:"blur(4px)",zIndex:100,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
+            <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:480,background:"var(--card)",borderRadius:"24px 24px 0 0",padding:"20px 18px 32px",boxShadow:"0 -8px 40px rgba(0,0,0,0.3)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+                <div style={{fontSize:18,fontWeight:800,display:"flex",alignItems:"center",gap:8}}>💱 בחר שער להצגה</div>
+                <button onClick={()=>setRatePicker(false)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--text2)"}}><X size={20}/></button>
+              </div>
+              <div style={{display:"flex",gap:10,alignItems:"flex-end",marginBottom:18}}>
+                <div style={{flex:1}}><label style={L}>ממטבע</label><select style={I} value={homeRateFrom} onChange={e=>setHomeRateFrom(e.target.value)}>{CURRS.map(c=><option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}</select></div>
+                <button onClick={()=>{const f=homeRateFrom;setHomeRateFrom(homeRateTo);setHomeRateTo(f);}} style={{width:44,height:48,borderRadius:14,border:"1px solid var(--border)",background:"var(--bg)",color:"var(--accent)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><ArrowLeftRight size={18}/></button>
+                <div style={{flex:1}}><label style={L}>למטבע</label><select style={I} value={homeRateTo} onChange={e=>setHomeRateTo(e.target.value)}>{CURRS.map(c=><option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}</select></div>
+              </div>
+              <div style={{textAlign:"center",padding:"16px",borderRadius:16,background:"var(--bg)",marginBottom:16}}>
+                <div style={{fontSize:20,fontWeight:800,color:"var(--accent)",letterSpacing:"-0.5px"}}>1 {homeRateFrom} = {cv(1,homeRateFrom,homeRateTo).toFixed(3)} {homeRateTo}</div>
+              </div>
+              <button style={B1} onClick={()=>{setRatePicker(false);show("✓ השער עודכן");}}>שמור</button>
+            </div>
+          </div>
+        )}
 
         {/* Hero trip card */}
         {heroTrip&&(()=>{
@@ -1283,20 +1378,11 @@ export default function App(){
         {id:"toiletries",label:"🧴 טיפוח",color:"#e84393"},
         {id:"general",label:"🎒 כללי",color:"#22A6B3"},
       ];
-      const DEFAULT_ITEMS=[
-        {cat:"docs",text:"דרכון"},{cat:"docs",text:"ויזה (אם נדרשת)"},{cat:"docs",text:"כרטיסי טיסה (דיגיטל/הדפסה)"},{cat:"docs",text:"ביטוח נסיעות"},{cat:"docs",text:"כרטיסי אשראי (2 לפחות)"},{cat:"docs",text:"מזומן במטבע מקומי"},{cat:"docs",text:"רישיון נהיגה"},{cat:"docs",text:"צילום דרכון (גיבוי)"},
-        {cat:"clothing",text:"חולצות (5-7)"},{cat:"clothing",text:"מכנסיים / שורטס"},{cat:"clothing",text:"תחתונים וגרביים"},{cat:"clothing",text:"נעליים נוחות"},{cat:"clothing",text:"כפכפים"},{cat:"clothing",text:"בגד ים"},{cat:"clothing",text:"מעיל / סוודר"},{cat:"clothing",text:"כובע שמש"},{cat:"clothing",text:"פיג'מה"},
-        {cat:"health",text:"תרופות אישיות"},{cat:"health",text:"משכך כאבים (אדוויל / אקמול)"},{cat:"health",text:"תרופות לשלשול"},{cat:"health",text:"קרם הגנה SPF 50+"},{cat:"health",text:"תרסיס נגד יתושים"},{cat:"health",text:"פלסטרים + חבישות"},{cat:"health",text:"תרופות לבחילה (טיסה/ים)"},{cat:"health",text:"אנטיביוטיקה (לפי צורך)"},
-        {cat:"electronics",text:"טלפון + מטען"},{cat:"electronics",text:"פאוור בנק"},{cat:"electronics",text:"אוזניות"},{cat:"electronics",text:"אדפטור / ממיר שקעים"},{cat:"electronics",text:"כבל USB-C"},{cat:"electronics",text:"מצלמה + מטען"},{cat:"electronics",text:"כרטיס זיכרון (SD)"},
-        {cat:"toiletries",text:"מברשת שיניים + משחה"},{cat:"toiletries",text:"שמפו + מרכך"},{cat:"toiletries",text:"סבון גוף"},{cat:"toiletries",text:"מגלח"},{cat:"toiletries",text:"דאודורנט"},{cat:"toiletries",text:"קרם לחות"},{cat:"toiletries",text:"מגבת מיקרופייבר"},
-        {cat:"general",text:"תיק גב קטן (לטיולים יומיים)"},{cat:"general",text:"בקבוק מים (ניתן למילוי)"},{cat:"general",text:"מנעול למזוודה"},{cat:"general",text:"שקיות זיפלוק"},{cat:"general",text:"ספר / קינדל"},{cat:"general",text:"אטמי אוזניים"},{cat:"general",text:"מסכת שינה"},{cat:"general",text:"כרית צוואר (לטיסה)"},{cat:"general",text:"מטריה קטנה"},
-      ];
-      const packing=trip.packing||(()=>{const items=DEFAULT_ITEMS.map(i=>({...i,id:gid(),checked:false,custom:false}));setTrips(p=>p.map(t=>t.id===activeTrip?{...t,packing:items}:t));return items;})();
-      const [packInput,setPackInput]=useState("");const [packCat,setPackCat]=useState("general");const [packFilter,setPackFilter]=useState("all");
+      const packing=trip.packing||[];
       function toggleItem(id){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,packing:(t.packing||[]).map(i=>i.id===id?{...i,checked:!i.checked}:i)}:t));}
       function addCustom(){if(!packInput.trim())return;const item={id:gid(),text:packInput.trim(),cat:packCat,checked:false,custom:true};setTrips(p=>p.map(t=>t.id===activeTrip?{...t,packing:[...(t.packing||[]),item]}:t));setPackInput("");}
       function removeItem(id){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,packing:(t.packing||[]).filter(i=>i.id!==id)}:t));}
-      function resetList(){if(window.confirm("לאפס את כל הרשימה?")){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,packing:DEFAULT_ITEMS.map(i=>({...i,id:gid(),checked:false,custom:false}))}:t));}}
+      function resetList(){if(window.confirm("לאפס את כל הרשימה?")){const DRESET=[{cat:"docs",text:"דרכון"},{cat:"docs",text:"ויזה (אם נדרשת)"},{cat:"docs",text:"כרטיסי טיסה (דיגיטל/הדפסה)"},{cat:"docs",text:"ביטוח נסיעות"},{cat:"docs",text:"כרטיסי אשראי (2 לפחות)"},{cat:"docs",text:"מזומן במטבע מקומי"},{cat:"docs",text:"רישיון נהיגה"},{cat:"docs",text:"צילום דרכון (גיבוי)"},{cat:"clothing",text:"חולצות (5-7)"},{cat:"clothing",text:"מכנסיים / שורטס"},{cat:"clothing",text:"תחתונים וגרביים"},{cat:"clothing",text:"נעליים נוחות"},{cat:"clothing",text:"כפכפים"},{cat:"clothing",text:"בגד ים"},{cat:"clothing",text:"מעיל / סוודר"},{cat:"clothing",text:"כובע שמש"},{cat:"clothing",text:"פיג'מה"},{cat:"health",text:"תרופות אישיות"},{cat:"health",text:"משכך כאבים (אדוויל / אקמול)"},{cat:"health",text:"תרופות לשלשול"},{cat:"health",text:"קרם הגנה SPF 50+"},{cat:"health",text:"תרסיס נגד יתושים"},{cat:"health",text:"פלסטרים + חבישות"},{cat:"health",text:"תרופות לבחילה (טיסה/ים)"},{cat:"health",text:"אנטיביוטיקה (לפי צורך)"},{cat:"electronics",text:"טלפון + מטען"},{cat:"electronics",text:"פאוור בנק"},{cat:"electronics",text:"אוזניות"},{cat:"electronics",text:"אדפטור / ממיר שקעים"},{cat:"electronics",text:"כבל USB-C"},{cat:"electronics",text:"מצלמה + מטען"},{cat:"electronics",text:"כרטיס זיכרון (SD)"},{cat:"toiletries",text:"מברשת שיניים + משחה"},{cat:"toiletries",text:"שמפו + מרכך"},{cat:"toiletries",text:"סבון גוף"},{cat:"toiletries",text:"מגלח"},{cat:"toiletries",text:"דאודורנט"},{cat:"toiletries",text:"קרם לחות"},{cat:"toiletries",text:"מגבת מיקרופייבר"},{cat:"general",text:"תיק גב קטן (לטיולים יומיים)"},{cat:"general",text:"בקבוק מים (ניתן למילוי)"},{cat:"general",text:"מנעול למזוודה"},{cat:"general",text:"שקיות זיפלוק"},{cat:"general",text:"ספר / קינדל"},{cat:"general",text:"אטמי אוזניים"},{cat:"general",text:"מסכת שינה"},{cat:"general",text:"כרית צוואר (לטיסה)"},{cat:"general",text:"מטריה קטנה"}];setTrips(p=>p.map(t=>t.id===activeTrip?{...t,packing:DRESET.map(i=>({...i,id:gid(),checked:false,custom:false}))}:t));}}
       const checkedCount=packing.filter(i=>i.checked).length;
       const total=packing.length;
       const displayed=packFilter==="done"?packing.filter(i=>i.checked):packFilter==="todo"?packing.filter(i=>!i.checked):packing;
@@ -1549,7 +1635,7 @@ export default function App(){
           <div style={{position:"relative"}}>
             <button onClick={()=>setMenuOpen(!menuOpen)} style={{background:"none",border:"none",cursor:"pointer",padding:8}}><MoreVertical size={20} color="var(--text2)"/></button>
             {menuOpen&&<><div onClick={()=>setMenuOpen(false)} style={{position:"fixed",top:0,left:0,right:0,bottom:0,zIndex:60}}/><div style={{position:"absolute",top:"100%",right:0,width:230,background:"rgba(20,24,32,0.98)",border:"1px solid var(--border)",borderRadius:18,boxShadow:"0 12px 40px rgba(0,0,0,.6)",zIndex:70,overflow:"hidden",backdropFilter:"blur(30px)",animation:"fadeUp .15s"}}>
-              {[{Icon:UserPlus,l:"Add Friend",a:()=>{setSub("addFriend");setMenuOpen(false)}},{Icon:Pencil,l:"Edit Trip",a:()=>{setEditTripForm({name:trip.name,country:trip.country,budget:trip.budget,currency:trip.currency,startDate:trip.startDate,endDate:trip.endDate});setSub("editTrip");setMenuOpen(false)}},{Icon:FileText,l:"Documents",a:()=>{setTab("files");setSub(null);setMenuOpen(false)}},{Icon:ShoppingBag,l:"רשימת ציוד",a:()=>{setSub("packing");setMenuOpen(false)}},{Icon:Download,l:"Export CSV",a:()=>{setSub("exportView");setMenuOpen(false)}},{Icon:Share2,l:"Share",a:()=>{setSub("shareView");setMenuOpen(false)}},{Icon:Settings,l:"Settings",a:()=>{setSub("settings");setMenuOpen(false)}}].map(({Icon,l,a},i)=>
+              {[{Icon:UserPlus,l:"Add Friend",a:()=>{setSub("addFriend");setMenuOpen(false)}},{Icon:Pencil,l:"Edit Trip",a:()=>{setEditTripForm({name:trip.name,country:trip.country,budget:trip.budget,currency:trip.currency,startDate:trip.startDate,endDate:trip.endDate});setSub("editTrip");setMenuOpen(false)}},{Icon:FileText,l:"Documents",a:()=>{setTab("files");setSub(null);setMenuOpen(false)}},{Icon:ShoppingBag,l:"רשימת ציוד",a:()=>{if(!trip.packing||!trip.packing.length){const DINIT=[{cat:"docs",text:"דרכון"},{cat:"docs",text:"ויזה (אם נדרשת)"},{cat:"docs",text:"כרטיסי טיסה (דיגיטל/הדפסה)"},{cat:"docs",text:"ביטוח נסיעות"},{cat:"docs",text:"כרטיסי אשראי (2 לפחות)"},{cat:"docs",text:"מזומן במטבע מקומי"},{cat:"docs",text:"רישיון נהיגה"},{cat:"docs",text:"צילום דרכון (גיבוי)"},{cat:"clothing",text:"חולצות (5-7)"},{cat:"clothing",text:"מכנסיים / שורטס"},{cat:"clothing",text:"תחתונים וגרביים"},{cat:"clothing",text:"נעליים נוחות"},{cat:"clothing",text:"כפכפים"},{cat:"clothing",text:"בגד ים"},{cat:"clothing",text:"מעיל / סוודר"},{cat:"clothing",text:"כובע שמש"},{cat:"clothing",text:"פיג'מה"},{cat:"health",text:"תרופות אישיות"},{cat:"health",text:"משכך כאבים (אדוויל / אקמול)"},{cat:"health",text:"תרופות לשלשול"},{cat:"health",text:"קרם הגנה SPF 50+"},{cat:"health",text:"תרסיס נגד יתושים"},{cat:"health",text:"פלסטרים + חבישות"},{cat:"health",text:"תרופות לבחילה (טיסה/ים)"},{cat:"health",text:"אנטיביוטיקה (לפי צורך)"},{cat:"electronics",text:"טלפון + מטען"},{cat:"electronics",text:"פאוור בנק"},{cat:"electronics",text:"אוזניות"},{cat:"electronics",text:"אדפטור / ממיר שקעים"},{cat:"electronics",text:"כבל USB-C"},{cat:"electronics",text:"מצלמה + מטען"},{cat:"electronics",text:"כרטיס זיכרון (SD)"},{cat:"toiletries",text:"מברשת שיניים + משחה"},{cat:"toiletries",text:"שמפו + מרכך"},{cat:"toiletries",text:"סבון גוף"},{cat:"toiletries",text:"מגלח"},{cat:"toiletries",text:"דאודורנט"},{cat:"toiletries",text:"קרם לחות"},{cat:"toiletries",text:"מגבת מיקרופייבר"},{cat:"general",text:"תיק גב קטן (לטיולים יומיים)"},{cat:"general",text:"בקבוק מים (ניתן למילוי)"},{cat:"general",text:"מנעול למזוודה"},{cat:"general",text:"שקיות זיפלוק"},{cat:"general",text:"ספר / קינדל"},{cat:"general",text:"אטמי אוזניים"},{cat:"general",text:"מסכת שינה"},{cat:"general",text:"כרית צוואר (לטיסה)"},{cat:"general",text:"מטריה קטנה"}];setTrips(p=>p.map(t=>t.id===activeTrip?{...t,packing:DINIT.map(i=>({...i,id:gid(),checked:false,custom:false}))}:t));}setSub("packing");setMenuOpen(false)}},{Icon:Download,l:"Export CSV",a:()=>{setSub("exportView");setMenuOpen(false)}},{Icon:Share2,l:"Share",a:()=>{setSub("shareView");setMenuOpen(false)}},{Icon:Settings,l:"Settings",a:()=>{setSub("settings");setMenuOpen(false)}}].map(({Icon,l,a},i)=>
                 <button key={i} onClick={a} style={{width:"100%",padding:"14px 18px",background:"none",border:"none",borderTop:i?"1px solid var(--border)":"none",color:"#fff",cursor:"pointer",fontFamily:"Heebo,system-ui",fontSize:14,fontWeight:500,textAlign:"left",display:"flex",alignItems:"center",gap:12}}><Icon size={18} color="rgba(255,255,255,0.55)"/>{l}</button>)}
             </div></>}</div></div>
 
