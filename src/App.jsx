@@ -152,7 +152,7 @@ export default function App(){
   async function saveToGist(tripsData,userNameData,token,id){
     if(!token)return;
     setSyncStatus('saving');
-    const content=JSON.stringify({trips:tripsData,userName:userNameData},null,2);
+    const content=JSON.stringify({trips:tripsData,userName:userNameData,updatedAt:Date.now()},null,2);
     const body={description:'Trip Tracker Data',public:false,files:{'trip-tracker-data.json':{content}}};
     try{
       if(!id){
@@ -192,10 +192,29 @@ export default function App(){
     window.history.pushState({screen,activeTrip,tab,sub},'',window.location.pathname+window.location.search);
   },[screen]);
 
-  // ── Load from Gist on mount (or fall back to localStorage) ──
+  // ── Load from Gist on mount — safe last-write-wins (never wipes newer local edits) ──
   useEffect(()=>{
     (async()=>{
-      await loadFromGist(githubToken,gistId);
+      try{
+        if(githubToken&&gistId){
+          const r=await fetch(`https://api.github.com/gists/${gistId}`,{headers:{'Authorization':`Bearer ${githubToken}`,'Accept':'application/vnd.github.v3+json'}});
+          if(r.ok){
+            const d=await r.json();
+            const content=d.files?.['trip-tracker-data.json']?.content;
+            if(content){
+              const data=JSON.parse(content);
+              const localTs=Number(localStorage.getItem('tt_updatedAt')||0);
+              const cloudTs=Number(data.updatedAt||0);
+              // adopt cloud only when it's at least as new as local — protects offline edits
+              if(Array.isArray(data.trips)&&cloudTs>=localTs){
+                setTrips(data.trips);
+                if(data.userName)setUserName(data.userName);
+                if(cloudTs>localTs)show("↺ שוחזר מהענן");
+              }
+            }
+          }
+        }
+      }catch{}
       fbLoaded.current=true;
     })();
   },[]);
@@ -203,14 +222,14 @@ export default function App(){
   // ── Save to localStorage + Gist (debounced 2s) on every change ──
   useEffect(()=>{
     if(!fbLoaded.current)return;
-    try{localStorage.setItem('tt_trips',JSON.stringify(trips))}catch{}
+    try{localStorage.setItem('tt_trips',JSON.stringify(trips));localStorage.setItem('tt_updatedAt',String(Date.now()))}catch{}
     if(!githubToken)return;
     if(saveTimer.current)clearTimeout(saveTimer.current);
     saveTimer.current=setTimeout(()=>saveToGist(trips,userName,githubToken,gistId),2000);
   },[trips]);
   useEffect(()=>{
     if(!fbLoaded.current)return;
-    try{localStorage.setItem('tt_userName',userName)}catch{}
+    try{localStorage.setItem('tt_userName',userName);localStorage.setItem('tt_updatedAt',String(Date.now()))}catch{}
     if(!githubToken)return;
     if(saveTimer.current)clearTimeout(saveTimer.current);
     saveTimer.current=setTimeout(()=>saveToGist(trips,userName,githubToken,gistId),2000);
@@ -242,6 +261,35 @@ export default function App(){
     window.speechSynthesis.speak(u);
   }
   function copyTxt(t){try{const a=document.createElement("textarea");a.value=t;a.style.cssText="position:fixed;opacity:0";document.body.appendChild(a);a.select();document.execCommand("copy");document.body.removeChild(a);show("Copied!");return true}catch{return false}}
+
+  // ── Local file backup (no token needed — survives a browser reset) ──
+  function downloadBackup(){
+    try{
+      const payload={app:"trip-tracker",version:2,exportedAt:new Date().toISOString(),updatedAt:Date.now(),userName,trips,extraCurrs};
+      const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a");
+      a.href=url;a.download=`trip-tracker-backup-${new Date().toISOString().slice(0,10)}.json`;
+      document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+      show("⬇ קובץ הגיבוי הורד");
+    }catch{show("שגיאה בהורדת הגיבוי");}
+  }
+  function importBackup(file){
+    const reader=new FileReader();
+    reader.onload=()=>{
+      try{
+        const d=JSON.parse(reader.result);
+        const arr=Array.isArray(d)?d:d.trips;
+        if(!Array.isArray(arr)){show("קובץ גיבוי לא תקין");return;}
+        if(!window.confirm(`לשחזר ${arr.length} טיולים מהגיבוי? הפעולה תחליף את הנתונים הנוכחיים במכשיר.`))return;
+        setTrips(arr);
+        if(d&&d.userName)setUserName(d.userName);
+        if(d&&Array.isArray(d.extraCurrs))setExtraCurrs(d.extraCurrs);
+        show("↺ שוחזר מקובץ הגיבוי!");
+      }catch{show("שגיאה בקריאת הקובץ");}
+    };
+    reader.readAsText(file);
+  }
 
 
   const trip=useMemo(()=>trips.find(t=>t.id===activeTrip),[trips,activeTrip]);
@@ -1153,8 +1201,16 @@ export default function App(){
     return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 40px"}}><style>{css}</style>{toastEl}
       <div style={{maxWidth:480,margin:"0 auto"}}>
         <button onClick={()=>setScreen("home")} style={BK}><ChevronLeft size={18}/>Back</button>
-        <h2 style={{fontSize:26,fontWeight:800,margin:"20px 0 8px",letterSpacing:"-0.5px",display:"flex",alignItems:"center",gap:10}}><Settings size={24} style={{color:"var(--accent)"}}/>Cloud Sync</h2>
-        <p style={{fontSize:13,color:"var(--text2)",marginBottom:28}}>Save your data to a private GitHub Gist — syncs across all your devices</p>
+        <h2 style={{fontSize:26,fontWeight:800,margin:"20px 0 8px",letterSpacing:"-0.5px",display:"flex",alignItems:"center",gap:10}}><Settings size={24} style={{color:"var(--accent)"}}/>גיבוי וסנכרון</h2>
+        <p style={{fontSize:13,color:"var(--text2)",marginBottom:20}}>גבה את הנתונים שלך כדי שלא יאבדו — קובץ מקומי או ל-Git (Gist פרטי עם היסטוריית גרסאות)</p>
+        <div style={{...C,marginBottom:16}}>
+          <div style={{...L,marginBottom:6}}>גיבוי מקומי · ללא צורך בטוקן</div>
+          <p style={{fontSize:12,color:"var(--text2)",marginBottom:16,lineHeight:1.6}}>הדרך הכי בטוחה: הורד קובץ ושמור אותו ב-Drive/Dropbox. הקובץ שורד גם אם תאפס את הדפדפן.</p>
+          <button style={B1} onClick={downloadBackup}>⬇ הורד קובץ גיבוי</button>
+          <label style={{...B2,marginTop:10,display:"flex",alignItems:"center",justifyContent:"center",gap:6,cursor:"pointer",boxSizing:"border-box"}}>↺ שחזר מקובץ גיבוי
+            <input type="file" accept="application/json,.json" style={{display:"none"}} onChange={e=>{const f=e.target.files&&e.target.files[0];if(f)importBackup(f);e.target.value="";}}/>
+          </label>
+        </div>
         <div style={{...C,marginBottom:16}}>
           <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",borderRadius:14,background:isConn?"rgba(0,229,160,.08)":"rgba(255,255,255,.03)",border:`1px solid ${isConn?"rgba(0,229,160,.3)":"var(--border)"}`,marginBottom:20}}>
             <div style={{width:9,height:9,borderRadius:"50%",background:isConn?"var(--accent)":"var(--text2)",flexShrink:0,boxShadow:isConn?"0 0 8px var(--accent)":"none"}}/>
