@@ -1,5 +1,6 @@
 // v2.1
 import { useState, useEffect, useMemo, useRef } from "react";
+import { firebaseReady, onAuth, signUp, signIn, logOut, loadUserData, watchUserData, saveUserData, authErrorText } from "./firebase";
 import { Plane, Plus, ChevronLeft, MoreVertical, ArrowLeftRight, Globe, Receipt, TrendingUp, Coffee, UtensilsCrossed, ShoppingBag, Hotel, Bus, Wine, HeartPulse, Smartphone, Gift, Shield, Shirt, MapPin, Ticket, Camera, Music, Landmark, Palmtree, Eye, Pencil, Download, Share2, Settings, Trash2, UserPlus, Volume2, X, Clock, CreditCard, Wallet, Users, Copy, ExternalLink, ChevronRight, Compass, Utensils, Beer, Baby, ShoppingCart, TreePine, Waves, Gem, Map, Route, DollarSign, Navigation, Globe2, Star, Sun, FileText, Upload, Cloud, CalendarDays, Link2, Wind } from "lucide-react";
 
 /* ═══════ DATA ═══════ */
@@ -154,6 +155,17 @@ function Pie({data,size=170}){
 export default function App(){
   const[trips,setTrips]=useState(()=>{try{const s=localStorage.getItem('tt_trips');if(s!==null){const p=JSON.parse(s);if(Array.isArray(p))return p;}}catch{}return[{id:"d1",name:"Athens & Islands",country:"Greece",budget:2000,currency:"USD",startDate:"2026-04-01",endDate:"2026-04-14",shared:[],expenses:[{id:"e1",amount:320,category:"flights",currency:"USD",note:"Round-trip",date:""},{id:"e2",amount:55,category:"insurance",currency:"USD",note:"Travel insurance",date:""},{id:"e3",amount:45,category:"food",currency:"EUR",note:"Dinner in Athens",date:"2026-04-02"},{id:"e4",amount:120,category:"accommodation",currency:"EUR",note:"Airbnb",date:"2026-04-02"},{id:"e5",amount:25,category:"tours",currency:"EUR",note:"Acropolis",date:"2026-04-03"},{id:"e6",amount:4.5,category:"coffee",currency:"EUR",note:"Cappuccino",date:"2026-04-03"},{id:"e7",amount:35,category:"groceries",currency:"EUR",note:"Super market",date:"2026-04-04"},{id:"e8",amount:60,category:"gifts",currency:"EUR",note:"Souvenirs",date:"2026-04-04"}]}];});
   const fbLoaded=useRef(false);
+  // ── Firebase auth / cloud state ──
+  const[authUser,setAuthUser]=useState(null);        // firebase user object, or null
+  const[authReady,setAuthReady]=useState(!firebaseReady); // true once we know login state
+  const[authMode,setAuthMode]=useState("signin");    // "signin" | "signup"
+  const[authEmail,setAuthEmail]=useState("");
+  const[authPw,setAuthPw]=useState("");
+  const[authErr,setAuthErr]=useState("");
+  const[authBusy,setAuthBusy]=useState(false);
+  const[cloudStatus,setCloudStatus]=useState("");    // '', 'saving', 'saved', 'error'
+  const cloudLoading=useRef(false);                  // pause saves while applying a cloud snapshot
+  const cloudSaveTimer=useRef(null);
   const[githubToken,setGithubToken]=useState(()=>localStorage.getItem('tt_gh_token')||'');
   const[gistId,setGistId]=useState(()=>localStorage.getItem('tt_gist_id')||'');
   const[syncStatus,setSyncStatus]=useState('');
@@ -306,6 +318,64 @@ export default function App(){
     saveTimer.current=setTimeout(()=>saveToGist(trips,userName,githubToken,gistId),2000);
   },[userName]);
   useEffect(()=>{if(screen==="syncSettings"){setTokenDraft(githubToken);setGistDraft(gistId);}},[screen]);
+
+  // ── Firebase: track login state ──
+  useEffect(()=>{
+    if(!firebaseReady){setAuthReady(true);return;}
+    const unsub=onAuth(u=>{setAuthUser(u);setAuthReady(true);if(!u)setCloudStatus("");});
+    return unsub;
+  },[]);
+
+  // ── Firebase: on login, live-sync the user's cloud document with app state.
+  //    Cloud is the source of truth; if no cloud doc exists yet we seed it
+  //    from whatever trips live on this device (one-time migration). ──
+  useEffect(()=>{
+    if(!firebaseReady||!authUser)return;
+    let seeded=false;
+    const unsub=watchUserData(authUser.uid,async data=>{
+      if(data&&Array.isArray(data.trips)){
+        cloudLoading.current=true;              // suppress the echo-save this triggers
+        setTrips(data.trips);
+        if(typeof data.userName==="string")setUserName(data.userName);
+        setCloudStatus("saved");
+      }else if(!seeded){
+        seeded=true;                            // no cloud doc → upload this device's data
+        try{await saveUserData(authUser.uid,{trips,userName});}catch{}
+      }
+    });
+    return unsub;
+  },[authUser]);
+
+  // ── Firebase: debounced save of trips/userName to the cloud ──
+  useEffect(()=>{
+    if(!firebaseReady||!authUser)return;
+    if(cloudLoading.current){cloudLoading.current=false;return;} // skip echoing a cloud snapshot back
+    setCloudStatus("saving");
+    if(cloudSaveTimer.current)clearTimeout(cloudSaveTimer.current);
+    cloudSaveTimer.current=setTimeout(async()=>{
+      try{await saveUserData(authUser.uid,{trips,userName});setCloudStatus("saved");}
+      catch{setCloudStatus("error");}
+    },1200);
+  },[trips,userName,authUser]);
+
+  // ── Auth actions (login screen) ──
+  async function doAuth(){
+    if(authBusy)return;
+    setAuthErr("");
+    if(!authEmail.trim()||!authPw){setAuthErr("מלא אימייל וסיסמה");return;}
+    setAuthBusy(true);
+    try{
+      if(authMode==="signup")await signUp(authEmail,authPw);
+      else await signIn(authEmail,authPw);
+      setAuthPw("");
+    }catch(e){setAuthErr(authErrorText(e?.code));}
+    finally{setAuthBusy(false);}
+  }
+  async function doLogout(){
+    try{await logOut();}catch{}
+    setScreen("home");setActiveTrip(null);setMenuOpen(false);
+    show("התנתקת");
+  }
 
   useEffect(()=>{try{localStorage.setItem('tt_extra_currs',JSON.stringify(extraCurrs))}catch{}},[extraCurrs]);
   useEffect(()=>{try{if(homeTripId)localStorage.setItem('tt_home_trip',homeTripId);else localStorage.removeItem('tt_home_trip')}catch{}},[homeTripId]);
@@ -504,6 +574,39 @@ export default function App(){
       </div>
       <div style={{textAlign:"right"}}><div style={{fontWeight:800,fontSize:15,letterSpacing:"-0.3px"}}>{fC(e.amount,e.currency)}</div>
         {trip&&e.currency!==trip.currency&&<div style={{fontSize:11,color:"var(--text2)",fontWeight:500}}>≈{fC(conv,trip.currency)}</div>}</div>
+    </div>);
+  }
+
+  /* ═══════════════════════════════════════════ */
+  /* AUTH GATE — login / signup before the app loads */
+  if(firebaseReady&&!authReady){
+    return(<div style={{minHeight:"100vh",background:"var(--bg)",display:"flex",alignItems:"center",justifyContent:"center"}}><style>{css}</style>
+      <div style={{color:"var(--text2)",fontWeight:700,animation:"pulse 1.2s infinite"}}>טוען…</div></div>);
+  }
+  if(firebaseReady&&!authUser){
+    return(<div dir="rtl" style={{minHeight:"100vh",background:"var(--bg)",position:"relative",overflow:"hidden",display:"flex",flexDirection:"column",justifyContent:"center",padding:"24px 20px"}}><style>{css}</style>{toastEl}
+      <SparkleBg/>
+      <div style={{maxWidth:380,width:"100%",margin:"0 auto",position:"relative",zIndex:2,animation:"fadeUp .4s ease"}}>
+        <div style={{textAlign:"center",marginBottom:28}}>
+          <div style={{width:72,height:72,borderRadius:22,margin:"0 auto 16px",background:"linear-gradient(135deg,#1E5BD6,#163FA5)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 8px 32px rgba(30,91,214,.3)"}}><Plane size={34} color="#fff" strokeWidth={2}/></div>
+          <div style={{fontSize:26,fontWeight:900,letterSpacing:"-0.8px"}}>Trip Tracker</div>
+          <div style={{fontSize:14,color:"var(--text2)",fontWeight:600,marginTop:6}}>{authMode==="signup"?"יצירת חשבון חדש":"התחברות לחשבון שלך"}</div>
+        </div>
+        <div style={{...C,padding:22}}>
+          <div style={{display:"flex",gap:6,background:"var(--card2)",borderRadius:14,padding:4,marginBottom:18}}>
+            {[["signin","התחברות"],["signup","הרשמה"]].map(([m,l])=>(
+              <button key={m} onClick={()=>{setAuthMode(m);setAuthErr("");}} style={{flex:1,padding:"10px 0",borderRadius:11,border:"none",cursor:"pointer",fontWeight:800,fontSize:14,fontFamily:"Heebo,system-ui",background:authMode===m?"#fff":"transparent",color:authMode===m?"var(--accent)":"var(--text2)",boxShadow:authMode===m?"var(--shadow)":"none",transition:"all .2s"}}>{l}</button>
+            ))}
+          </div>
+          <label style={{fontSize:12,fontWeight:700,color:"var(--text2)",display:"block",marginBottom:6}}>אימייל</label>
+          <input type="email" dir="ltr" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doAuth()} placeholder="you@example.com" style={{...I,marginBottom:14,textAlign:"left"}}/>
+          <label style={{fontSize:12,fontWeight:700,color:"var(--text2)",display:"block",marginBottom:6}}>סיסמה</label>
+          <input type="password" dir="ltr" value={authPw} onChange={e=>setAuthPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doAuth()} placeholder={authMode==="signup"?"לפחות 6 תווים":"••••••••"} style={{...I,marginBottom:authErr?10:18,textAlign:"left"}}/>
+          {authErr&&<div style={{background:"rgba(230,57,70,.08)",color:"var(--red)",fontSize:13,fontWeight:600,padding:"10px 12px",borderRadius:12,marginBottom:14}}>{authErr}</div>}
+          <button onClick={doAuth} disabled={authBusy} style={{...B1,opacity:authBusy?.6:1,cursor:authBusy?"default":"pointer"}}>{authBusy?"רגע…":(authMode==="signup"?"צור חשבון":"התחבר")}</button>
+        </div>
+        <div style={{textAlign:"center",fontSize:12,color:"var(--text2)",marginTop:18,lineHeight:1.6}}>הנתונים שלך נשמרים בענן ומסתנכרנים בין כל המכשירים.<br/>אימייל וסיסמה בלבד — ללא שיתוף עם צד שלישי.</div>
+      </div>
     </div>);
   }
 
@@ -1364,6 +1467,21 @@ export default function App(){
         <button onClick={()=>setScreen("home")} style={BK}><ChevronLeft size={18}/>Back</button>
         <h2 style={{fontSize:26,fontWeight:800,margin:"20px 0 8px",letterSpacing:"-0.5px",display:"flex",alignItems:"center",gap:10}}><Settings size={24} style={{color:"var(--accent)"}}/>גיבוי וסנכרון</h2>
         <p style={{fontSize:13,color:"var(--text2)",marginBottom:20}}>גבה את הנתונים שלך כדי שלא יאבדו — קובץ מקומי או ל-Git (Gist פרטי עם היסטוריית גרסאות)</p>
+        {firebaseReady&&authUser&&(()=>{
+          const cs=cloudStatus==="saving"?{t:"שומר בענן…",c:"var(--text2)"}:cloudStatus==="error"?{t:"שגיאת סנכרון",c:"var(--red)"}:{t:"מסונכרן בענן",c:"var(--accent)"};
+          return(<div dir="rtl" style={{...C,marginBottom:16}}>
+            <div style={{...L,marginBottom:12}}>החשבון שלי</div>
+            <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}>
+              <div style={{width:44,height:44,borderRadius:14,background:"linear-gradient(135deg,#1E5BD6,#163FA5)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:900,fontSize:18,flexShrink:0}}>{(authUser.email||"?").charAt(0).toUpperCase()}</div>
+              <div style={{minWidth:0,flex:1}}>
+                <div style={{fontSize:14,fontWeight:700,direction:"ltr",textAlign:"right",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{authUser.email}</div>
+                <div style={{display:"flex",alignItems:"center",gap:6,marginTop:3}}><span style={{width:8,height:8,borderRadius:"50%",background:cs.c,flexShrink:0,boxShadow:`0 0 8px ${cs.c}`}}/><span style={{fontSize:12,fontWeight:600,color:cs.c}}>{cs.t}</span></div>
+              </div>
+            </div>
+            <p style={{fontSize:12,color:"var(--text2)",lineHeight:1.6,marginBottom:14}}>הטיולים שלך נשמרים אוטומטית בענן ומסתנכרנים בין כל המכשירים שבהם תתחבר לחשבון הזה.</p>
+            <button style={{...B2,color:"var(--red)",display:"flex",alignItems:"center",justifyContent:"center",gap:6}} onClick={doLogout}><X size={15}/>התנתק</button>
+          </div>);
+        })()}
         <div style={{...C,marginBottom:16}}>
           <div style={{...L,marginBottom:6}}>גיבוי מקומי · ללא צורך בטוקן</div>
           <p style={{fontSize:12,color:"var(--text2)",marginBottom:16,lineHeight:1.6}}>הדרך הכי בטוחה: הורד קובץ ושמור אותו ב-Drive/Dropbox. הקובץ שורד גם אם תאפס את הדפדפן.</p>
