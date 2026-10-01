@@ -1712,7 +1712,7 @@ export default function App(){
 
         <div style={{...C,marginBottom:18}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
-            <div><div style={{fontSize:11,color:"var(--text2)",fontWeight:600,letterSpacing:"0.5px"}}>TOTAL SPENT</div><div style={{fontSize:30,fontWeight:800,color:"var(--accent)",letterSpacing:"-1px",marginTop:4}}>{fC(totalSpent,trip.currency)}</div></div>
+            <div><div style={{fontSize:11,color:"var(--text2)",fontWeight:600,letterSpacing:"0.5px"}}>TOTAL SPENT</div><div style={{fontSize:30,fontWeight:800,color:"var(--accent)",letterSpacing:"-1px",marginTop:4}}>{fC(totalSpent,trip.currency)}</div>{trip.currency!=="ILS"&&<div style={{fontSize:13,color:"var(--text2)",fontWeight:600,marginTop:2}}>≈ {fC(cv(totalSpent,trip.currency,"ILS"),"ILS")}</div>}</div>
             <div style={{textAlign:"right"}}><div style={{fontSize:11,color:"var(--text2)",fontWeight:600,letterSpacing:"0.5px"}}>DAILY AVG</div><div style={{fontSize:18,fontWeight:700,marginTop:4}}>{fC(dailyAvg,trip.currency)}</div></div>
           </div>
           {trip.budget>0&&<div style={{marginTop:14}}><div style={{height:6,borderRadius:3,background:"var(--border)",overflow:"hidden"}}><div style={{height:"100%",borderRadius:3,width:`${Math.min((totalSpent/trip.budget)*100,100)}%`,background:totalSpent>trip.budget?"var(--red)":"var(--accent)",transition:"width .4s"}}/></div>
