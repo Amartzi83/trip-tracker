@@ -248,6 +248,8 @@ export default function App(){
   const[packInput,setPackInput]=useState("");
   const[packCat,setPackCat]=useState("general");
   const[packFilter,setPackFilter]=useState("all");
+  const[planTab,setPlanTab]=useState("visits"); // "visits" | "shopping" — trip planning lists
+  const[planInput,setPlanInput]=useState("");
   const[trFrom,setTrFrom]=useState("en");
   const[trTo,setTrTo]=useState("th");
   const[trText,setTrText]=useState("");
@@ -647,7 +649,7 @@ export default function App(){
 
   /* ═══════ TAB BAR ═══════ */
   function TabBar(){
-    const tabs=[{id:"entries",Icon:Receipt,l:"הוצאות"},{id:"stats",Icon:TrendingUp,l:"סטטיסטיקה"},{id:"xe",Icon:ArrowLeftRight,l:"המרה"},{id:"translate",Icon:Globe,l:"תרגום"},{id:"files",Icon:FileText,l:"קבצים"}];
+    const tabs=[{id:"entries",Icon:Receipt,l:"הוצאות"},{id:"stats",Icon:TrendingUp,l:"סטטיסטיקה"},{id:"xe",Icon:ArrowLeftRight,l:"המרה"},{id:"plan",Icon:MapPin,l:"תכנון"},{id:"files",Icon:FileText,l:"קבצים"}];
     return(<div style={{position:"fixed",bottom:0,left:0,right:0,background:"#FFFFFF",borderTop:"1px solid var(--border)",display:"flex",zIndex:50,paddingBottom:"env(safe-area-inset-bottom)",boxShadow:"0 -2px 12px rgba(40,60,140,0.05)"}}>
       {tabs.map(({id,Icon,l})=><button key={id} onClick={()=>{setTab(id);setSub(null)}} style={{flex:1,padding:"10px 0 8px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,color:tab===id?"#1E5BD6":"#A8AEC0",transition:"all .2s"}}>
         <Icon size={20} strokeWidth={tab===id?2.5:1.5}/><span style={{fontSize:9,fontWeight:tab===id?800:500,letterSpacing:"0.3px"}}>{l}</span>
@@ -2026,38 +2028,60 @@ export default function App(){
       </div><TabBar/></div>);
     }
 
-    /* ═══ TRANSLATE ═══ */
-    if(tab==="translate"){
-      const fl=LANGS.find(l=>l.code===trFrom),tl=LANGS.find(l=>l.code===trTo);
+    /* ═══ PLAN — visit points + shopping list (to-do style) ═══ */
+    if(tab==="plan"){
+      const listKey=planTab==="visits"?"visits":"shopping";
+      const items=trip[listKey]||[];
+      const accent=planTab==="visits"?"#1E5BD6":"#00A676";
+      const done=items.filter(i=>i.checked).length,total=items.length;
+      function addItem(){if(!planInput.trim())return;const it={id:gid(),text:planInput.trim(),checked:false};setTrips(p=>p.map(t=>t.id===activeTrip?{...t,[listKey]:[...(t[listKey]||[]),it]}:t));setPlanInput("");}
+      function toggle(id){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,[listKey]:(t[listKey]||[]).map(i=>i.id===id?{...i,checked:!i.checked}:i)}:t));}
+      function del(id){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,[listKey]:(t[listKey]||[]).filter(i=>i.id!==id)}:t));}
+      const TABS=[{id:"visits",emoji:"📍",l:"נקודות ביקור",ph:"מקום שתרצה לבקר בו..."},{id:"shopping",emoji:"🛒",l:"קניות",ph:"מה צריך לקנות..."}];
+      const cur=TABS.find(t=>t.id===planTab);
       return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"16px 16px 100px"}}><style>{css}</style>{toastEl}<div style={{maxWidth:480,margin:"0 auto"}}>
-        <h2 style={{fontSize:22,fontWeight:800,marginBottom:4,display:"flex",alignItems:"center",gap:8}}><Globe size={22} style={{color:"var(--accent)"}}/>Translate</h2>
-        <p style={{fontSize:11,color:"var(--text2)",marginBottom:18}}>Powered by Google Translate · Free · No API key needed</p>
-        <div style={{...C,marginBottom:16}}>
-          <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:14}}>
-            <div style={{flex:1}}><select style={I} value={trFrom} onChange={e=>setTrFrom(e.target.value)}>{LANGS.map(l=><option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}</select></div>
-            <button onClick={()=>{setTrFrom(trTo);setTrTo(trFrom);setTrResult("")}} style={{width:40,height:40,borderRadius:14,border:"1px solid var(--border)",background:"var(--card)",color:"var(--accent)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><ArrowLeftRight size={18}/></button>
-            <div style={{flex:1}}><select style={I} value={trTo} onChange={e=>setTrTo(e.target.value)}>{LANGS.map(l=><option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}</select></div>
+        <h2 style={{fontSize:22,fontWeight:800,marginBottom:16,display:"flex",alignItems:"center",gap:8}}><MapPin size={22} style={{color:"var(--accent)"}}/>תכנון הטיול</h2>
+        {/* List switcher */}
+        <div style={{display:"flex",gap:6,background:"var(--card2)",borderRadius:14,padding:4,marginBottom:18}}>
+          {TABS.map(t=>(
+            <button key={t.id} onClick={()=>setPlanTab(t.id)} style={{flex:1,padding:"10px 0",borderRadius:11,border:"none",cursor:"pointer",fontWeight:800,fontSize:13,fontFamily:"Heebo,system-ui",background:planTab===t.id?"#fff":"transparent",color:planTab===t.id?"var(--accent)":"var(--text2)",boxShadow:planTab===t.id?"var(--shadow)":"none",transition:"all .2s",display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>
+              <span>{t.emoji}</span>{t.l}
+            </button>
+          ))}
+        </div>
+        {/* Add */}
+        <div style={{...C,marginBottom:16,padding:"14px 16px"}}>
+          <div style={{display:"flex",gap:8}}>
+            <input style={{...I,flex:1}} placeholder={cur.ph} value={planInput} onChange={e=>setPlanInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")addItem();}}/>
+            <button onClick={addItem} style={{width:48,height:48,borderRadius:14,border:"none",background:accent,color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Plus size={20}/></button>
           </div>
-          <textarea style={{...I,minHeight:70,resize:"vertical",marginBottom:12}} placeholder={`Type in ${fl?.name||""}...`} value={trText} onChange={e=>setTrText(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();doTranslate(trText)}}}/>
-          <button style={{...B1,opacity:trLoading?.6:1}} onClick={()=>doTranslate(trText)} disabled={trLoading}>{trLoading?"Translating...":"Translate"}</button>
-          {trResult&&<div style={{background:"var(--bg)",borderRadius:16,padding:16,marginTop:16,border:"1px solid var(--border)"}}>
-            <div style={{marginBottom:12,paddingBottom:12,borderBottom:"1px solid var(--border)"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><span style={{fontSize:11,color:"var(--text2)"}}>{fl?.flag} {fl?.name}</span>
-                <button onClick={()=>speak(trText,trFrom)} style={{background:"none",border:"1px solid var(--border)",borderRadius:10,padding:"4px 12px",cursor:"pointer",display:"flex",alignItems:"center",gap:4,fontSize:11,color:"var(--accent)",fontFamily:"Inter"}}><Volume2 size={14}/>Play</button></div>
-              <div style={{fontSize:13,color:"var(--text2)"}}>{trText}</div></div>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-              <span style={{fontSize:11,color:"var(--accent)",fontWeight:700}}>{tl?.flag} {tl?.name}</span>
-              <div style={{display:"flex",gap:6}}>
-                <button onClick={()=>copyTxt(trResult)} style={{background:"none",border:"1px solid var(--border)",borderRadius:10,padding:"5px 12px",cursor:"pointer",display:"flex",alignItems:"center",gap:4,fontSize:11,color:"var(--text2)",fontFamily:"Inter"}}><Copy size={13}/>Copy</button>
-                <button onClick={()=>speak(trResult,trTo)} style={{background:"var(--accent)",border:"none",borderRadius:10,padding:"6px 14px",cursor:"pointer",display:"flex",alignItems:"center",gap:4,fontSize:12,color:"#000",fontWeight:700,fontFamily:"Inter"}}><Volume2 size={14}/>Listen</button>
-              </div>
+        </div>
+        {/* Progress */}
+        {total>0&&<div style={{...C,marginBottom:16,padding:"14px 18px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+            <span style={{fontSize:13,fontWeight:700}}>{done} מתוך {total} {planTab==="visits"?"בוצעו":"נקנו"}</span>
+            <span style={{fontSize:12,color:accent,fontWeight:700}}>{Math.round(done/total*100)}%</span>
+          </div>
+          <div style={{height:8,borderRadius:4,background:"var(--border)",overflow:"hidden"}}>
+            <div style={{height:"100%",borderRadius:4,width:`${done/total*100}%`,background:accent,transition:"width .3s"}}/>
+          </div>
+        </div>}
+        {/* Items */}
+        {total===0
+          ?<div style={{textAlign:"center",padding:"50px 20px",color:"var(--text2)"}}>
+             <div style={{fontSize:52,marginBottom:12}}>{cur.emoji}</div>
+             <p style={{fontWeight:700,fontSize:16,color:"var(--text)",marginBottom:6}}>{planTab==="visits"?"עדיין אין נקודות ביקור":"הרשימה ריקה"}</p>
+             <p style={{fontSize:13}}>{planTab==="visits"?"הוסף אטרקציות ומקומות שתרצה לראות":"הוסף פריטים שצריך לקנות לטיול"}</p>
+           </div>
+          :items.map(item=>(
+            <div key={item.id} style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",background:"var(--card)",borderRadius:14,border:"1px solid var(--border)",marginBottom:7,opacity:item.checked?.55:1,transition:"opacity .2s"}}>
+              <button onClick={()=>toggle(item.id)} style={{width:24,height:24,borderRadius:7,border:item.checked?`2px solid ${accent}`:"2px solid var(--border)",background:item.checked?accent:"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,transition:"all .15s"}}>
+                {item.checked&&<svg width="13" height="10" viewBox="0 0 13 10"><path d="M1 5l3.5 3.5L12 1" stroke="#fff" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+              </button>
+              <span style={{flex:1,fontSize:14,fontWeight:500,color:"var(--text)",textDecoration:item.checked?"line-through":"none"}}>{item.text}</span>
+              <button onClick={()=>del(item.id)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--text2)",padding:2,display:"flex",opacity:.5}}><X size={15}/></button>
             </div>
-            <div style={{fontSize:20,fontWeight:700,lineHeight:1.5,direction:"auto"}}>{trResult}</div>
-          </div>}
-        </div>
-        <div style={C}><div style={{...L,marginBottom:12}}>Quick Phrases</div>
-          <div style={{display:"flex",flexDirection:"column",gap:5}}>{PHRASES.map((p,i)=><button key={i} onClick={()=>{setTrText(p);doTranslate(p)}} style={{textAlign:"left",padding:"10px 14px",borderRadius:12,border:"1px solid var(--border)",background:"var(--card)",color:"var(--text)",cursor:"pointer",fontSize:12,fontFamily:"Inter",fontWeight:500}}>{p}</button>)}</div>
-        </div>
+          ))}
       </div><TabBar/></div>);
     }
 
