@@ -1,6 +1,6 @@
 // v2.1
 import { useState, useEffect, useMemo, useRef } from "react";
-import { firebaseReady, onAuth, signUp, signIn, logOut, loadUserData, watchUserData, saveUserData, authErrorText } from "./firebase";
+import { firebaseReady, onAuth, signUp, signIn, logOut, resetPassword, loadUserData, watchUserData, saveUserData, saveUserFile, loadUserFile, deleteUserFile, authErrorText } from "./firebase";
 import { Plane, Plus, ChevronLeft, MoreVertical, ArrowLeftRight, Globe, Receipt, TrendingUp, Coffee, UtensilsCrossed, ShoppingBag, Hotel, Bus, Wine, HeartPulse, Smartphone, Gift, Shield, Shirt, MapPin, Ticket, Camera, Music, Landmark, Palmtree, Eye, Pencil, Download, Share2, Settings, Trash2, UserPlus, Volume2, X, Clock, CreditCard, Wallet, Users, Copy, ExternalLink, ChevronRight, Compass, Utensils, Beer, Baby, ShoppingCart, TreePine, Waves, Gem, Map, Route, DollarSign, Navigation, Globe2, Star, Sun, FileText, Upload, Cloud, CalendarDays, Link2, Wind } from "lucide-react";
 
 /* ═══════ DATA ═══════ */
@@ -151,6 +151,38 @@ function Pie({data,size=170}){
       <span style={{width:10,height:10,borderRadius:3,background:s.color,flexShrink:0}}/><span style={{opacity:.6}}>{s.label}</span><span style={{fontWeight:700}}>{s.pct}%</span></div>)}</div></div>);
 }
 
+/* Read any file to a data: URL. */
+function fileToDataURL(file){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=e=>resolve(e.target.result);
+    r.onerror=reject;
+    r.readAsDataURL(file);
+  });
+}
+
+/* Downscale + re-encode an image to keep it comfortably under the Firestore
+   ~1 MiB per-document limit. Returns a JPEG data: URL. Loads via a data: URL
+   (not a blob: URL) so it works reliably across browsers and sandboxes. */
+async function compressImage(file,maxDim=1600,quality=0.72){
+  const src=await fileToDataURL(file);
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    img.onload=()=>{
+      let {width,height}=img;
+      if(width>maxDim||height>maxDim){const s=Math.min(maxDim/width,maxDim/height);width=Math.round(width*s);height=Math.round(height*s);}
+      const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+      canvas.getContext('2d').drawImage(img,0,0,width,height);
+      let q=quality,out=canvas.toDataURL('image/jpeg',q);
+      // If still too big, step the quality down a few times.
+      while(out.length>900*1024&&q>0.4){q-=0.15;out=canvas.toDataURL('image/jpeg',q);}
+      resolve(out);
+    };
+    img.onerror=()=>reject(new Error('image load failed'));
+    img.src=src;
+  });
+}
+
 /* ═══════ APP ═══════ */
 export default function App(){
   const[trips,setTrips]=useState(()=>{try{const s=localStorage.getItem('tt_trips');if(s!==null){const p=JSON.parse(s);if(Array.isArray(p))return p;}}catch{}return[{id:"d1",name:"Athens & Islands",country:"Greece",budget:2000,currency:"USD",startDate:"2026-04-01",endDate:"2026-04-14",shared:[],expenses:[{id:"e1",amount:320,category:"flights",currency:"USD",note:"Round-trip",date:""},{id:"e2",amount:55,category:"insurance",currency:"USD",note:"Travel insurance",date:""},{id:"e3",amount:45,category:"food",currency:"EUR",note:"Dinner in Athens",date:"2026-04-02"},{id:"e4",amount:120,category:"accommodation",currency:"EUR",note:"Airbnb",date:"2026-04-02"},{id:"e5",amount:25,category:"tours",currency:"EUR",note:"Acropolis",date:"2026-04-03"},{id:"e6",amount:4.5,category:"coffee",currency:"EUR",note:"Cappuccino",date:"2026-04-03"},{id:"e7",amount:35,category:"groceries",currency:"EUR",note:"Super market",date:"2026-04-04"},{id:"e8",amount:60,category:"gifts",currency:"EUR",note:"Souvenirs",date:"2026-04-04"}]}];});
@@ -166,6 +198,9 @@ export default function App(){
   const[cloudStatus,setCloudStatus]=useState("");    // '', 'saving', 'saved', 'error'
   const cloudLoading=useRef(false);                  // pause saves while applying a cloud snapshot
   const cloudSaveTimer=useRef(null);
+  const[fileCache,setFileCache]=useState({});        // fileId -> data: URL (file contents live in a subcollection)
+  const fileLoading=useRef({});                      // fileId -> true while being fetched
+  const[authReset,setAuthReset]=useState(false);     // password-reset busy flag
   const[githubToken,setGithubToken]=useState(()=>localStorage.getItem('tt_gh_token')||'');
   const[gistId,setGistId]=useState(()=>localStorage.getItem('tt_gist_id')||'');
   const[syncStatus,setSyncStatus]=useState('');
@@ -358,6 +393,36 @@ export default function App(){
     },1200);
   },[trips,userName,authUser]);
 
+  // ── Firebase: migrate any legacy inline file data to the files subcollection.
+  //    Older docs embedded the base64 `data` inside trips; move it out so the
+  //    main user document stays small (well under Firestore's 1 MiB limit). ──
+  useEffect(()=>{
+    if(!firebaseReady||!authUser)return;
+    const legacy=[];
+    trips.forEach(t=>(t.docs||[]).forEach(d=>{if(d&&d.data)legacy.push(d);}));
+    if(!legacy.length)return;
+    (async()=>{
+      for(const d of legacy){try{await saveUserFile(authUser.uid,d.id,d.data);}catch{}}
+      setFileCache(c=>{const n={...c};legacy.forEach(d=>{n[d.id]=d.data;});return n;});
+      setTrips(p=>p.map(t=>({...t,docs:(t.docs||[]).map(({data,...rest})=>rest)})));
+    })();
+  },[authUser,trips]);
+
+  // ── Firebase: when viewing the Files tab, pull each file's contents into the
+  //    in-memory cache on demand (metadata lives in trips, bytes in subcollection). ──
+  useEffect(()=>{
+    if(!firebaseReady||!authUser||tab!=="files")return;
+    const activeT=trips.find(x=>x.id===activeTrip);
+    if(!activeT)return;
+    (activeT.docs||[]).forEach(async d=>{
+      if(!d||!d.id||fileCache[d.id]!==undefined||fileLoading.current[d.id])return;
+      fileLoading.current[d.id]=true;
+      try{const data=await loadUserFile(authUser.uid,d.id);if(data)setFileCache(c=>({...c,[d.id]:data}));}
+      catch{}
+      fileLoading.current[d.id]=false;
+    });
+  },[tab,activeTrip,authUser,trips]);
+
   // ── Auth actions (login screen) ──
   async function doAuth(){
     if(authBusy)return;
@@ -373,8 +438,16 @@ export default function App(){
   }
   async function doLogout(){
     try{await logOut();}catch{}
-    setScreen("home");setActiveTrip(null);setMenuOpen(false);
+    setScreen("home");setActiveTrip(null);setMenuOpen(false);setFileCache({});fileLoading.current={};
     show("התנתקת");
+  }
+  async function doReset(){
+    if(authReset)return;
+    if(!authEmail.trim()){setAuthErr("הכנס אימייל למעלה ואז לחץ שוב כדי לאפס סיסמה");return;}
+    setAuthReset(true);setAuthErr("");
+    try{await resetPassword(authEmail);show("📧 נשלח אליך מייל לאיפוס סיסמה");}
+    catch(e){setAuthErr(authErrorText(e?.code));}
+    finally{setAuthReset(false);}
   }
 
   useEffect(()=>{try{localStorage.setItem('tt_extra_currs',JSON.stringify(extraCurrs))}catch{}},[extraCurrs]);
@@ -604,6 +677,7 @@ export default function App(){
           <input type="password" dir="ltr" value={authPw} onChange={e=>setAuthPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doAuth()} placeholder={authMode==="signup"?"לפחות 6 תווים":"••••••••"} style={{...I,marginBottom:authErr?10:18,textAlign:"left"}}/>
           {authErr&&<div style={{background:"rgba(230,57,70,.08)",color:"var(--red)",fontSize:13,fontWeight:600,padding:"10px 12px",borderRadius:12,marginBottom:14}}>{authErr}</div>}
           <button onClick={doAuth} disabled={authBusy} style={{...B1,opacity:authBusy?.6:1,cursor:authBusy?"default":"pointer"}}>{authBusy?"רגע…":(authMode==="signup"?"צור חשבון":"התחבר")}</button>
+          {authMode==="signin"&&<div style={{textAlign:"center",marginTop:14}}><button onClick={doReset} disabled={authReset} style={{background:"none",border:"none",color:"var(--text2)",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"Heebo,system-ui",textDecoration:"underline"}}>{authReset?"שולח…":"שכחת סיסמה?"}</button></div>}
         </div>
         <div style={{textAlign:"center",fontSize:12,color:"var(--text2)",marginTop:18,lineHeight:1.6}}>הנתונים שלך נשמרים בענן ומסתנכרנים בין כל המכשירים.<br/>אימייל וסיסמה בלבד — ללא שיתוף עם צד שלישי.</div>
       </div>
@@ -1943,19 +2017,32 @@ export default function App(){
         {id:"other",label:"📁 אחר",color:"#B2BEC3"},
       ];
       const docs=trip.docs||[];
-      function handleFile(e){
-        const f=e.target.files[0];if(!f)return;
-        if(f.size>5*1024*1024){show("קובץ גדול מדי (מקסימום 5MB)");e.target.value='';return;}
-        const r=new FileReader();
-        r.onload=ev=>{
-          setTrips(p=>p.map(t=>t.id===activeTrip?{...t,docs:[...(t.docs||[]),{id:gid(),name:f.name,mimeType:f.type,size:f.size,data:ev.target.result,cat:docCat,addedAt:new Date().toISOString().slice(0,10)}]}:t));
-          show("קובץ נוסף!");e.target.value='';
-        };
-        r.readAsDataURL(f);
+      async function handleFile(e){
+        const f=e.target.files[0];if(!f)return;e.target.value='';
+        if(f.size>5*1024*1024){show("קובץ גדול מדי (מקסימום 5MB)");return;}
+        const isImg=(f.type||'').startsWith('image/');
+        try{
+          let dataUrl,mimeType=f.type;
+          if(isImg){dataUrl=await compressImage(f);mimeType='image/jpeg';}
+          else{dataUrl=await fileToDataURL(f);}
+          if(dataUrl.length>950*1024){show(isImg?"התמונה גדולה מדי גם אחרי דחיסה":"הקובץ גדול מדי לענן · עד ~900KB");return;}
+          const id=gid();const size=Math.round(dataUrl.length*0.75);
+          if(authUser){await saveUserFile(authUser.uid,id,dataUrl);}
+          setFileCache(c=>({...c,[id]:dataUrl}));
+          setTrips(p=>p.map(t=>t.id===activeTrip?{...t,docs:[...(t.docs||[]),{id,name:f.name,mimeType,size,cat:docCat,addedAt:new Date().toISOString().slice(0,10)}]}:t));
+          show("קובץ נוסף!");
+        }catch{show("שגיאה בהעלאת הקובץ");}
       }
-      function viewDoc(doc){const a=document.createElement('a');a.href=doc.data;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();document.body.removeChild(a);}
-      function dlDoc(doc){const a=document.createElement('a');a.href=doc.data;a.download=doc.name;document.body.appendChild(a);a.click();document.body.removeChild(a);}
-      function delDoc(id){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,docs:(t.docs||[]).filter(d=>d.id!==id)}:t));show("נמחק");}
+      async function ensureData(doc){
+        if(fileCache[doc.id])return fileCache[doc.id];
+        if(doc.data)return doc.data;
+        if(!authUser)return null;
+        try{const data=await loadUserFile(authUser.uid,doc.id);if(data){setFileCache(c=>({...c,[doc.id]:data}));return data;}}catch{}
+        return null;
+      }
+      async function viewDoc(doc){const data=await ensureData(doc);if(!data){show("הקובץ עדיין נטען…");return;}const a=document.createElement('a');a.href=data;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();document.body.removeChild(a);}
+      async function dlDoc(doc){const data=await ensureData(doc);if(!data){show("הקובץ עדיין נטען…");return;}const a=document.createElement('a');a.href=data;a.download=doc.name;document.body.appendChild(a);a.click();document.body.removeChild(a);}
+      function delDoc(id){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,docs:(t.docs||[]).filter(d=>d.id!==id)}:t));if(authUser)deleteUserFile(authUser.uid,id).catch(()=>{});setFileCache(c=>{const n={...c};delete n[id];return n;});show("נמחק");}
       function fSz(b){if(!b)return'';if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(0)+'KB';return(b/1048576).toFixed(1)+'MB';}
       const byCat=FILE_CATS.map(cat=>({...cat,items:docs.filter(d=>d.cat===cat.id)})).filter(cat=>cat.items.length>0);
       const uncategorized=docs.filter(d=>!FILE_CATS.find(c=>c.id===d.cat));
@@ -1997,8 +2084,8 @@ export default function App(){
                 const catDef=FILE_CATS.find(c=>c.id===doc.cat)||FILE_CATS[FILE_CATS.length-1];
                 const isImg=doc.mimeType?.startsWith('image/');
                 return(<div key={doc.id} style={{...C,marginBottom:8,display:"flex",alignItems:"center",gap:12,padding:"12px 14px"}}>
-                  {isImg
-                    ?<img src={doc.data} alt={doc.name} style={{width:46,height:46,borderRadius:11,objectFit:"cover",flexShrink:0}}/>
+                  {isImg&&(fileCache[doc.id]||doc.data)
+                    ?<img src={fileCache[doc.id]||doc.data} alt={doc.name} style={{width:46,height:46,borderRadius:11,objectFit:"cover",flexShrink:0}}/>
                     :<div style={{width:46,height:46,borderRadius:13,background:`${catDef.color}20`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><FileText size={22} color={catDef.color}/></div>
                   }
                   <div style={{flex:1,minWidth:0}}>

@@ -13,12 +13,14 @@ import {
   signOut,
   setPersistence,
   browserLocalPersistence,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import {
   getFirestore,
   doc,
   getDoc,
   setDoc,
+  deleteDoc,
   onSnapshot,
 } from "firebase/firestore";
 import { firebaseConfig, firebaseReady } from "./firebaseConfig";
@@ -59,6 +61,11 @@ export async function logOut() {
   if (auth) await signOut(auth);
 }
 
+export async function resetPassword(email) {
+  if (!auth) return;
+  await sendPasswordResetEmail(auth, email.trim());
+}
+
 // ── Firestore (one doc per user) ──
 function userRef(uid) {
   return doc(db, "users", uid);
@@ -85,6 +92,30 @@ export function watchUserData(uid, cb) {
 export async function saveUserData(uid, data) {
   if (!db) return;
   await setDoc(userRef(uid), { ...data, updatedAt: Date.now() }, { merge: true });
+}
+
+// ── Uploaded files ──
+// Each file is its own document at  users/{uid}/files/{fileId}  so a big file
+// never bloats the main user document (Firestore caps any document at ~1 MiB).
+// The main doc keeps only lightweight metadata per file (name, size, category).
+function fileRef(uid, fileId) {
+  return doc(db, "users", uid, "files", fileId);
+}
+
+export async function saveUserFile(uid, fileId, dataUrl) {
+  if (!db) return;
+  await setDoc(fileRef(uid, fileId), { data: dataUrl });
+}
+
+export async function loadUserFile(uid, fileId) {
+  if (!db) return null;
+  const snap = await getDoc(fileRef(uid, fileId));
+  return snap.exists() ? snap.data().data : null;
+}
+
+export async function deleteUserFile(uid, fileId) {
+  if (!db) return;
+  await deleteDoc(fileRef(uid, fileId));
 }
 
 // Friendly Hebrew messages for common Firebase auth errors.
