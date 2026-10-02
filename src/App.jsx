@@ -616,7 +616,17 @@ export default function App(){
   const C={background:"var(--card)",borderRadius:22,padding:20,border:"1px solid var(--border)",boxShadow:"var(--shadow)"};
   const L={fontSize:10,color:"var(--text2)",marginBottom:8,display:"block",textTransform:"uppercase",letterSpacing:"1.5px",fontWeight:700};
   const BK={background:"none",border:"none",color:"var(--accent)",fontSize:14,cursor:"pointer",fontFamily:"Heebo,system-ui",fontWeight:700,display:"flex",alignItems:"center",gap:4};
-  const toastEl=toast?<div style={{position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",background:"linear-gradient(135deg,#1E5BD6,#163FA5)",color:"#fff",padding:"12px 28px",borderRadius:50,fontWeight:800,fontSize:13,zIndex:999,boxShadow:"0 8px 32px rgba(30,91,214,.3)"}}>{toast}</div>:null;
+  // Persistent cloud-sync indicator — shown on every screen (toastEl is rendered everywhere).
+  const syncEl=(firebaseReady&&authUser)?(()=>{
+    const st=cloudStatus==="saving"?{t:"שומר…",c:"#1E5BD6",bg:"rgba(30,91,214,.12)",pulse:true}
+      :cloudStatus==="error"?{t:"לא נשמר · בדוק חיבור",c:"#E63946",bg:"rgba(230,57,70,.14)",pulse:false}
+      :{t:"נשמר בענן",c:"#00A676",bg:"rgba(0,166,118,.12)",pulse:false};
+    const prominent=cloudStatus==="saving"||cloudStatus==="error";
+    return(<div style={{position:"fixed",top:"calc(10px + env(safe-area-inset-top))",left:10,zIndex:998,display:"flex",alignItems:"center",gap:6,padding:"5px 11px",borderRadius:50,background:st.bg,backdropFilter:"blur(8px)",border:`1px solid ${st.c}40`,fontSize:11,fontWeight:700,color:st.c,pointerEvents:"none",opacity:prominent?1:.7,transition:"opacity .3s"}}>
+      <span style={{width:7,height:7,borderRadius:"50%",background:st.c,flexShrink:0,animation:st.pulse?"pulse 1s infinite":"none"}}/>{st.t}
+    </div>);
+  })():null;
+  const toastEl=<>{syncEl}{toast?<div style={{position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",background:"linear-gradient(135deg,#1E5BD6,#163FA5)",color:"#fff",padding:"12px 28px",borderRadius:50,fontWeight:800,fontSize:13,zIndex:999,boxShadow:"0 8px 32px rgba(30,91,214,.3)"}}>{toast}</div>:null}</>;
 
   /* ═══════ TAB BAR ═══════ */
   function TabBar(){
