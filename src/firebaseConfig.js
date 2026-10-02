@@ -9,12 +9,12 @@
 // Replace every REPLACE_ME below with your project's values.
 // ─────────────────────────────────────────────────────────────
 export const firebaseConfig = {
-  apiKey: "REPLACE_ME",
-  authDomain: "REPLACE_ME.firebaseapp.com",
-  projectId: "REPLACE_ME",
-  storageBucket: "REPLACE_ME.appspot.com",
-  messagingSenderId: "REPLACE_ME",
-  appId: "REPLACE_ME",
+  apiKey: "AIzaSyAI6LV11cJUsG8MJDtBlV3RNzT0Um22Yn4",
+  authDomain: "trip-tracker-13d37.firebaseapp.com",
+  projectId: "trip-tracker-13d37",
+  storageBucket: "trip-tracker-13d37.firebasestorage.app",
+  messagingSenderId: "15371701873",
+  appId: "1:15371701873:web:fe46cd7bcf85e5ef3d15d0",
 };
 
 // True once real config has been pasted in. Until then the app stays
