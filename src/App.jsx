@@ -724,7 +724,11 @@ export default function App(){
         <div style={{...C,padding:22,textAlign:"center"}}>
           <p style={{fontSize:14,color:"var(--text)",lineHeight:1.7,marginBottom:6}}>שלחנו קישור אימות אל:</p>
           <p style={{fontSize:14,fontWeight:800,direction:"ltr",marginBottom:16,wordBreak:"break-all"}}>{authUser.email}</p>
-          <p style={{fontSize:13,color:"var(--text2)",lineHeight:1.7,marginBottom:18}}>פתח את המייל ולחץ על הקישור כדי להפעיל את החשבון. אם לא מצאת — בדוק בתיקיית הספאם.</p>
+          <p style={{fontSize:13,color:"var(--text2)",lineHeight:1.7,marginBottom:12}}>פתח את המייל ולחץ על הקישור כדי להפעיל את החשבון.</p>
+          <div style={{display:"flex",alignItems:"flex-start",gap:8,background:"rgba(245,181,62,.12)",border:"1px solid rgba(245,181,62,.4)",borderRadius:12,padding:"11px 13px",marginBottom:18,textAlign:"right"}}>
+            <span style={{fontSize:18,lineHeight:1,flexShrink:0}}>⚠️</span>
+            <span style={{fontSize:13,fontWeight:700,color:"#9A6B00",lineHeight:1.6}}>לא קיבלת? בדוק בתיקיית הספאם / דואר זבל — המייל מגיע לעיתים לשם. מומלץ לסמן אותו כ"לא ספאם".</span>
+          </div>
           {verifyMsg&&<div style={{background:"rgba(30,91,214,.08)",color:"var(--accent)",fontSize:13,fontWeight:600,padding:"10px 12px",borderRadius:12,marginBottom:14}}>{verifyMsg}</div>}
           <button onClick={doCheckVerified} disabled={verifyBusy} style={{...B1,opacity:verifyBusy?.6:1,cursor:verifyBusy?"default":"pointer"}}>{verifyBusy?"בודק…":"כבר אימתתי — המשך"}</button>
           <button onClick={doResendVerify} disabled={verifyBusy} style={{...B2,marginTop:10,cursor:verifyBusy?"default":"pointer"}}>שלח מייל אימות שוב</button>
