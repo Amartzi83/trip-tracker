@@ -1,6 +1,6 @@
 // v2.1
 import { useState, useEffect, useMemo, useRef } from "react";
-import { firebaseReady, onAuth, signUp, signIn, logOut, resetPassword, loadUserData, watchUserData, saveUserData, saveUserFile, loadUserFile, deleteUserFile, authErrorText } from "./firebase";
+import { firebaseReady, onAuth, signUp, signIn, logOut, resetPassword, resendVerification, reloadUser, loadUserData, watchUserData, saveUserData, saveUserFile, loadUserFile, deleteUserFile, authErrorText } from "./firebase";
 import { Plane, Plus, ChevronLeft, MoreVertical, ArrowLeftRight, Globe, Receipt, TrendingUp, Coffee, UtensilsCrossed, ShoppingBag, Hotel, Bus, Wine, HeartPulse, Smartphone, Gift, Shield, Shirt, MapPin, Ticket, Camera, Music, Landmark, Palmtree, Eye, Pencil, Download, Share2, Settings, Trash2, UserPlus, Volume2, X, Clock, CreditCard, Wallet, Users, Copy, ExternalLink, ChevronRight, Compass, Utensils, Beer, Baby, ShoppingCart, TreePine, Waves, Gem, Map, Route, DollarSign, Navigation, Globe2, Star, Sun, FileText, Upload, Cloud, CalendarDays, Link2, Wind } from "lucide-react";
 
 /* ═══════ DATA ═══════ */
@@ -201,6 +201,9 @@ export default function App(){
   const[fileCache,setFileCache]=useState({});        // fileId -> data: URL (file contents live in a subcollection)
   const fileLoading=useRef({});                      // fileId -> true while being fetched
   const[authReset,setAuthReset]=useState(false);     // password-reset busy flag
+  const[emailVerified,setEmailVerified]=useState(false); // current user's email verified?
+  const[verifyBusy,setVerifyBusy]=useState(false);
+  const[verifyMsg,setVerifyMsg]=useState("");
   const[githubToken,setGithubToken]=useState(()=>localStorage.getItem('tt_gh_token')||'');
   const[gistId,setGistId]=useState(()=>localStorage.getItem('tt_gist_id')||'');
   const[syncStatus,setSyncStatus]=useState('');
@@ -357,7 +360,7 @@ export default function App(){
   // ── Firebase: track login state ──
   useEffect(()=>{
     if(!firebaseReady){setAuthReady(true);return;}
-    const unsub=onAuth(u=>{setAuthUser(u);setAuthReady(true);if(!u)setCloudStatus("");});
+    const unsub=onAuth(u=>{setAuthUser(u);setEmailVerified(!!(u&&u.emailVerified));setAuthReady(true);if(!u){setCloudStatus("");setVerifyMsg("");}});
     return unsub;
   },[]);
 
@@ -365,7 +368,7 @@ export default function App(){
   //    Cloud is the source of truth; if no cloud doc exists yet we seed it
   //    from whatever trips live on this device (one-time migration). ──
   useEffect(()=>{
-    if(!firebaseReady||!authUser)return;
+    if(!firebaseReady||!authUser||!emailVerified)return;
     let seeded=false;
     const unsub=watchUserData(authUser.uid,async data=>{
       if(data&&Array.isArray(data.trips)){
@@ -379,11 +382,11 @@ export default function App(){
       }
     });
     return unsub;
-  },[authUser]);
+  },[authUser,emailVerified]);
 
   // ── Firebase: debounced save of trips/userName to the cloud ──
   useEffect(()=>{
-    if(!firebaseReady||!authUser)return;
+    if(!firebaseReady||!authUser||!emailVerified)return;
     if(cloudLoading.current){cloudLoading.current=false;return;} // skip echoing a cloud snapshot back
     setCloudStatus("saving");
     if(cloudSaveTimer.current)clearTimeout(cloudSaveTimer.current);
@@ -391,13 +394,13 @@ export default function App(){
       try{await saveUserData(authUser.uid,{trips,userName});setCloudStatus("saved");}
       catch{setCloudStatus("error");}
     },1200);
-  },[trips,userName,authUser]);
+  },[trips,userName,authUser,emailVerified]);
 
   // ── Firebase: migrate any legacy inline file data to the files subcollection.
   //    Older docs embedded the base64 `data` inside trips; move it out so the
   //    main user document stays small (well under Firestore's 1 MiB limit). ──
   useEffect(()=>{
-    if(!firebaseReady||!authUser)return;
+    if(!firebaseReady||!authUser||!emailVerified)return;
     const legacy=[];
     trips.forEach(t=>(t.docs||[]).forEach(d=>{if(d&&d.data)legacy.push(d);}));
     if(!legacy.length)return;
@@ -406,12 +409,12 @@ export default function App(){
       setFileCache(c=>{const n={...c};legacy.forEach(d=>{n[d.id]=d.data;});return n;});
       setTrips(p=>p.map(t=>({...t,docs:(t.docs||[]).map(({data,...rest})=>rest)})));
     })();
-  },[authUser,trips]);
+  },[authUser,trips,emailVerified]);
 
   // ── Firebase: when viewing the Files tab, pull each file's contents into the
   //    in-memory cache on demand (metadata lives in trips, bytes in subcollection). ──
   useEffect(()=>{
-    if(!firebaseReady||!authUser||tab!=="files")return;
+    if(!firebaseReady||!authUser||!emailVerified||tab!=="files")return;
     const activeT=trips.find(x=>x.id===activeTrip);
     if(!activeT)return;
     (activeT.docs||[]).forEach(async d=>{
@@ -421,7 +424,7 @@ export default function App(){
       catch{}
       fileLoading.current[d.id]=false;
     });
-  },[tab,activeTrip,authUser,trips]);
+  },[tab,activeTrip,authUser,trips,emailVerified]);
 
   // ── Auth actions (login screen) ──
   async function doAuth(){
@@ -448,6 +451,20 @@ export default function App(){
     try{await resetPassword(authEmail);show("📧 נשלח אליך מייל לאיפוס סיסמה");}
     catch(e){setAuthErr(authErrorText(e?.code));}
     finally{setAuthReset(false);}
+  }
+  async function doResendVerify(){
+    if(verifyBusy)return;
+    setVerifyBusy(true);setVerifyMsg("");
+    try{await resendVerification();setVerifyMsg("📧 שלחנו שוב מייל אימות — בדוק גם בספאם");}
+    catch(e){setVerifyMsg(e?.code==="auth/too-many-requests"?"שלחנו כבר כמה פעמים — המתן רגע ונסה שוב":"לא הצלחנו לשלוח, נסה שוב");}
+    finally{setVerifyBusy(false);}
+  }
+  async function doCheckVerified(){
+    if(verifyBusy)return;
+    setVerifyBusy(true);setVerifyMsg("");
+    try{const u=await reloadUser();if(u&&u.emailVerified){setEmailVerified(true);show("✓ האימייל אומת!");}else{setVerifyMsg("עדיין לא זוהה אימות. פתח את הקישור במייל ואז לחץ כאן שוב.");}}
+    catch{setVerifyMsg("אירעה שגיאה, נסה שוב");}
+    finally{setVerifyBusy(false);}
   }
 
   useEffect(()=>{try{localStorage.setItem('tt_extra_currs',JSON.stringify(extraCurrs))}catch{}},[extraCurrs]);
@@ -617,7 +634,7 @@ export default function App(){
   const L={fontSize:10,color:"var(--text2)",marginBottom:8,display:"block",textTransform:"uppercase",letterSpacing:"1.5px",fontWeight:700};
   const BK={background:"none",border:"none",color:"var(--accent)",fontSize:14,cursor:"pointer",fontFamily:"Heebo,system-ui",fontWeight:700,display:"flex",alignItems:"center",gap:4};
   // Persistent cloud-sync indicator — shown on every screen (toastEl is rendered everywhere).
-  const syncEl=(firebaseReady&&authUser)?(()=>{
+  const syncEl=(firebaseReady&&authUser&&emailVerified)?(()=>{
     const st=cloudStatus==="saving"?{t:"שומר…",c:"#1E5BD6",bg:"rgba(30,91,214,.12)",pulse:true}
       :cloudStatus==="error"?{t:"לא נשמר · בדוק חיבור",c:"#E63946",bg:"rgba(230,57,70,.14)",pulse:false}
       :{t:"נשמר בענן",c:"#00A676",bg:"rgba(0,166,118,.12)",pulse:false};
@@ -690,6 +707,29 @@ export default function App(){
           {authMode==="signin"&&<div style={{textAlign:"center",marginTop:14}}><button onClick={doReset} disabled={authReset} style={{background:"none",border:"none",color:"var(--text2)",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"Heebo,system-ui",textDecoration:"underline"}}>{authReset?"שולח…":"שכחת סיסמה?"}</button></div>}
         </div>
         <div style={{textAlign:"center",fontSize:12,color:"var(--text2)",marginTop:18,lineHeight:1.6}}>הנתונים שלך נשמרים בענן ומסתנכרנים בין כל המכשירים.<br/>אימייל וסיסמה בלבד — ללא שיתוף עם צד שלישי.</div>
+      </div>
+    </div>);
+  }
+
+  /* ═══════════════════════════════════════════ */
+  /* EMAIL VERIFICATION GATE — block the app until the address is confirmed */
+  if(firebaseReady&&authUser&&!emailVerified){
+    return(<div dir="rtl" style={{minHeight:"100vh",background:"var(--bg)",position:"relative",overflow:"hidden",display:"flex",flexDirection:"column",justifyContent:"center",padding:"24px 20px"}}><style>{css}</style>{toastEl}
+      <SparkleBg/>
+      <div style={{maxWidth:400,width:"100%",margin:"0 auto",position:"relative",zIndex:2,animation:"fadeUp .4s ease"}}>
+        <div style={{textAlign:"center",marginBottom:24}}>
+          <div style={{width:72,height:72,borderRadius:22,margin:"0 auto 16px",background:"linear-gradient(135deg,#1E5BD6,#163FA5)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 8px 32px rgba(30,91,214,.3)",fontSize:34}}>📧</div>
+          <div style={{fontSize:24,fontWeight:900,letterSpacing:"-0.6px"}}>אמת את האימייל שלך</div>
+        </div>
+        <div style={{...C,padding:22,textAlign:"center"}}>
+          <p style={{fontSize:14,color:"var(--text)",lineHeight:1.7,marginBottom:6}}>שלחנו קישור אימות אל:</p>
+          <p style={{fontSize:14,fontWeight:800,direction:"ltr",marginBottom:16,wordBreak:"break-all"}}>{authUser.email}</p>
+          <p style={{fontSize:13,color:"var(--text2)",lineHeight:1.7,marginBottom:18}}>פתח את המייל ולחץ על הקישור כדי להפעיל את החשבון. אם לא מצאת — בדוק בתיקיית הספאם.</p>
+          {verifyMsg&&<div style={{background:"rgba(30,91,214,.08)",color:"var(--accent)",fontSize:13,fontWeight:600,padding:"10px 12px",borderRadius:12,marginBottom:14}}>{verifyMsg}</div>}
+          <button onClick={doCheckVerified} disabled={verifyBusy} style={{...B1,opacity:verifyBusy?.6:1,cursor:verifyBusy?"default":"pointer"}}>{verifyBusy?"בודק…":"כבר אימתתי — המשך"}</button>
+          <button onClick={doResendVerify} disabled={verifyBusy} style={{...B2,marginTop:10,cursor:verifyBusy?"default":"pointer"}}>שלח מייל אימות שוב</button>
+        </div>
+        <div style={{textAlign:"center",marginTop:18}}><button onClick={doLogout} style={{background:"none",border:"none",color:"var(--text2)",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"Heebo,system-ui",textDecoration:"underline"}}>התחברות עם חשבון אחר</button></div>
       </div>
     </div>);
   }

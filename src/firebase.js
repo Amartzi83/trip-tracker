@@ -14,6 +14,8 @@ import {
   setPersistence,
   browserLocalPersistence,
   sendPasswordResetEmail,
+  sendEmailVerification,
+  reload,
 } from "firebase/auth";
 import {
   getFirestore,
@@ -49,7 +51,19 @@ export function onAuth(cb) {
 
 export async function signUp(email, password) {
   const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+  try { await sendEmailVerification(cred.user); } catch {}
   return cred.user;
+}
+
+export async function resendVerification() {
+  if (auth && auth.currentUser) await sendEmailVerification(auth.currentUser);
+}
+
+// Refresh the current user from the server (to pick up a new emailVerified flag).
+export async function reloadUser() {
+  if (!auth || !auth.currentUser) return null;
+  await reload(auth.currentUser);
+  return auth.currentUser;
 }
 
 export async function signIn(email, password) {
