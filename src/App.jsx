@@ -838,16 +838,10 @@ export default function App(){
       ]},
     ];
     const heroTrip=trips.find(t=>t.id===homeTripId)||trips[trips.length-1]||null;
-    const BG_IMGS=[
-      'https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?w=1280&q=80&fit=crop&auto=format',
-      'https://images.unsplash.com/photo-1528181304800-259b08848526?w=1280&q=80&fit=crop&auto=format',
-      'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1280&q=80&fit=crop&auto=format',
-      'https://images.unsplash.com/photo-1583417319070-4a69db38a482?w=1280&q=80&fit=crop&auto=format',
-    ];
-    const todayImg=BG_IMGS[Math.floor(Date.now()/86400000)%BG_IMGS.length];
+    const todayImg=`${import.meta.env.BASE_URL}home-bg.jpg`;
     return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"0 0 48px",position:"relative",overflow:"hidden"}}><style>{css}</style>{toastEl}
-      {/* Daily photo background */}
-      <div style={{position:"absolute",top:0,left:0,right:0,height:330,backgroundImage:`url(${todayImg})`,backgroundSize:"cover",backgroundPosition:"center 40%",zIndex:0}}>
+      {/* Photo background */}
+      <div style={{position:"absolute",top:0,left:0,right:0,height:330,backgroundImage:`url(${todayImg})`,backgroundSize:"cover",backgroundPosition:"center 32%",zIndex:0}}>
         <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom,rgba(0,0,0,0.48) 0%,rgba(0,0,0,0.28) 40%,rgba(244,247,254,0.88) 82%,#F4F7FE 100%)"}}/>
       </div>
       <SparkleBg/>
