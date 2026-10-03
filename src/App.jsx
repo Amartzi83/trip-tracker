@@ -838,7 +838,7 @@ export default function App(){
       ]},
     ];
     const heroTrip=trips.find(t=>t.id===homeTripId)||trips[trips.length-1]||null;
-    const todayImg=`${import.meta.env.BASE_URL}home-bg.jpg`;
+    const todayImg=`${import.meta.env.BASE_URL}home-bg-asia.jpg`;
     return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"0 0 48px",position:"relative",overflow:"hidden"}}><style>{css}</style>{toastEl}
       {/* Photo background */}
       <div style={{position:"absolute",top:0,left:0,right:0,height:330,backgroundImage:`url(${todayImg})`,backgroundSize:"cover",backgroundPosition:"center 60%",zIndex:0}}>
