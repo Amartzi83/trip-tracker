@@ -183,6 +183,17 @@ async function compressImage(file,maxDim=1600,quality=0.72){
   });
 }
 
+/* Packing-list categories + recommended default items (shared by the plan tab). */
+const PACK_CATS=[
+  {id:"docs",label:"📋 מסמכים",color:"#1E5BD6"},
+  {id:"clothing",label:"👕 ביגוד",color:"#686DE0"},
+  {id:"health",label:"💊 בריאות ורפואה",color:"#00B894"},
+  {id:"electronics",label:"🔌 אלקטרוניקה",color:"#f0932b"},
+  {id:"toiletries",label:"🧴 טיפוח",color:"#e84393"},
+  {id:"general",label:"🎒 כללי",color:"#22A6B3"},
+];
+const PACKING_DEFAULTS=[{cat:"docs",text:"דרכון"},{cat:"docs",text:"ויזה (אם נדרשת)"},{cat:"docs",text:"כרטיסי טיסה (דיגיטל/הדפסה)"},{cat:"docs",text:"ביטוח נסיעות"},{cat:"docs",text:"כרטיסי אשראי (2 לפחות)"},{cat:"docs",text:"מזומן במטבע מקומי"},{cat:"docs",text:"רישיון נהיגה"},{cat:"docs",text:"צילום דרכון (גיבוי)"},{cat:"clothing",text:"חולצות (5-7)"},{cat:"clothing",text:"מכנסיים / שורטס"},{cat:"clothing",text:"תחתונים וגרביים"},{cat:"clothing",text:"נעליים נוחות"},{cat:"clothing",text:"כפכפים"},{cat:"clothing",text:"בגד ים"},{cat:"clothing",text:"מעיל / סוודר"},{cat:"clothing",text:"כובע שמש"},{cat:"clothing",text:"פיג'מה"},{cat:"health",text:"תרופות אישיות"},{cat:"health",text:"משכך כאבים (אדוויל / אקמול)"},{cat:"health",text:"תרופות לשלשול"},{cat:"health",text:"קרם הגנה SPF 50+"},{cat:"health",text:"תרסיס נגד יתושים"},{cat:"health",text:"פלסטרים + חבישות"},{cat:"health",text:"תרופות לבחילה (טיסה/ים)"},{cat:"health",text:"אנטיביוטיקה (לפי צורך)"},{cat:"electronics",text:"טלפון + מטען"},{cat:"electronics",text:"פאוור בנק"},{cat:"electronics",text:"אוזניות"},{cat:"electronics",text:"אדפטור / ממיר שקעים"},{cat:"electronics",text:"כבל USB-C"},{cat:"electronics",text:"מצלמה + מטען"},{cat:"electronics",text:"כרטיס זיכרון (SD)"},{cat:"toiletries",text:"מברשת שיניים + משחה"},{cat:"toiletries",text:"שמפו + מרכך"},{cat:"toiletries",text:"סבון גוף"},{cat:"toiletries",text:"מגלח"},{cat:"toiletries",text:"דאודורנט"},{cat:"toiletries",text:"קרם לחות"},{cat:"toiletries",text:"מגבת מיקרופייבר"},{cat:"general",text:"תיק גב קטן (לטיולים יומיים)"},{cat:"general",text:"בקבוק מים (ניתן למילוי)"},{cat:"general",text:"מנעול למזוודה"},{cat:"general",text:"שקיות זיפלוק"},{cat:"general",text:"ספר / קינדל"},{cat:"general",text:"אטמי אוזניים"},{cat:"general",text:"מסכת שינה"},{cat:"general",text:"כרית צוואר (לטיסה)"},{cat:"general",text:"מטריה קטנה"}];
+
 /* ═══════ APP ═══════ */
 export default function App(){
   const[trips,setTrips]=useState(()=>{try{const s=localStorage.getItem('tt_trips');if(s!==null){const p=JSON.parse(s);if(Array.isArray(p))return p;}}catch{}return[{id:"d1",name:"Athens & Islands",country:"Greece",budget:2000,currency:"USD",startDate:"2026-04-01",endDate:"2026-04-14",shared:[],expenses:[{id:"e1",amount:320,category:"flights",currency:"USD",note:"Round-trip",date:""},{id:"e2",amount:55,category:"insurance",currency:"USD",note:"Travel insurance",date:""},{id:"e3",amount:45,category:"food",currency:"EUR",note:"Dinner in Athens",date:"2026-04-02"},{id:"e4",amount:120,category:"accommodation",currency:"EUR",note:"Airbnb",date:"2026-04-02"},{id:"e5",amount:25,category:"tours",currency:"EUR",note:"Acropolis",date:"2026-04-03"},{id:"e6",amount:4.5,category:"coffee",currency:"EUR",note:"Cappuccino",date:"2026-04-03"},{id:"e7",amount:35,category:"groceries",currency:"EUR",note:"Super market",date:"2026-04-04"},{id:"e8",amount:60,category:"gifts",currency:"EUR",note:"Souvenirs",date:"2026-04-04"}]}];});
@@ -1694,80 +1705,6 @@ export default function App(){
   /* ═══════ TRIP SCREEN ═══════ */
   if(screen==="trip"&&trip){
 
-    /* ══ PACKING LIST ══ */
-    if(sub==="packing"){
-      const PACK_CATS=[
-        {id:"docs",label:"📋 מסמכים",color:"#1E5BD6"},
-        {id:"clothing",label:"👕 ביגוד",color:"#686DE0"},
-        {id:"health",label:"💊 בריאות ורפואה",color:"#00B894"},
-        {id:"electronics",label:"🔌 אלקטרוניקה",color:"#f0932b"},
-        {id:"toiletries",label:"🧴 טיפוח",color:"#e84393"},
-        {id:"general",label:"🎒 כללי",color:"#22A6B3"},
-      ];
-      const packing=trip.packing||[];
-      function toggleItem(id){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,packing:(t.packing||[]).map(i=>i.id===id?{...i,checked:!i.checked}:i)}:t));}
-      function addCustom(){if(!packInput.trim())return;const item={id:gid(),text:packInput.trim(),cat:packCat,checked:false,custom:true};setTrips(p=>p.map(t=>t.id===activeTrip?{...t,packing:[...(t.packing||[]),item]}:t));setPackInput("");}
-      function removeItem(id){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,packing:(t.packing||[]).filter(i=>i.id!==id)}:t));}
-      function resetList(){if(window.confirm("לאפס את כל הרשימה?")){const DRESET=[{cat:"docs",text:"דרכון"},{cat:"docs",text:"ויזה (אם נדרשת)"},{cat:"docs",text:"כרטיסי טיסה (דיגיטל/הדפסה)"},{cat:"docs",text:"ביטוח נסיעות"},{cat:"docs",text:"כרטיסי אשראי (2 לפחות)"},{cat:"docs",text:"מזומן במטבע מקומי"},{cat:"docs",text:"רישיון נהיגה"},{cat:"docs",text:"צילום דרכון (גיבוי)"},{cat:"clothing",text:"חולצות (5-7)"},{cat:"clothing",text:"מכנסיים / שורטס"},{cat:"clothing",text:"תחתונים וגרביים"},{cat:"clothing",text:"נעליים נוחות"},{cat:"clothing",text:"כפכפים"},{cat:"clothing",text:"בגד ים"},{cat:"clothing",text:"מעיל / סוודר"},{cat:"clothing",text:"כובע שמש"},{cat:"clothing",text:"פיג'מה"},{cat:"health",text:"תרופות אישיות"},{cat:"health",text:"משכך כאבים (אדוויל / אקמול)"},{cat:"health",text:"תרופות לשלשול"},{cat:"health",text:"קרם הגנה SPF 50+"},{cat:"health",text:"תרסיס נגד יתושים"},{cat:"health",text:"פלסטרים + חבישות"},{cat:"health",text:"תרופות לבחילה (טיסה/ים)"},{cat:"health",text:"אנטיביוטיקה (לפי צורך)"},{cat:"electronics",text:"טלפון + מטען"},{cat:"electronics",text:"פאוור בנק"},{cat:"electronics",text:"אוזניות"},{cat:"electronics",text:"אדפטור / ממיר שקעים"},{cat:"electronics",text:"כבל USB-C"},{cat:"electronics",text:"מצלמה + מטען"},{cat:"electronics",text:"כרטיס זיכרון (SD)"},{cat:"toiletries",text:"מברשת שיניים + משחה"},{cat:"toiletries",text:"שמפו + מרכך"},{cat:"toiletries",text:"סבון גוף"},{cat:"toiletries",text:"מגלח"},{cat:"toiletries",text:"דאודורנט"},{cat:"toiletries",text:"קרם לחות"},{cat:"toiletries",text:"מגבת מיקרופייבר"},{cat:"general",text:"תיק גב קטן (לטיולים יומיים)"},{cat:"general",text:"בקבוק מים (ניתן למילוי)"},{cat:"general",text:"מנעול למזוודה"},{cat:"general",text:"שקיות זיפלוק"},{cat:"general",text:"ספר / קינדל"},{cat:"general",text:"אטמי אוזניים"},{cat:"general",text:"מסכת שינה"},{cat:"general",text:"כרית צוואר (לטיסה)"},{cat:"general",text:"מטריה קטנה"}];setTrips(p=>p.map(t=>t.id===activeTrip?{...t,packing:DRESET.map(i=>({...i,id:gid(),checked:false,custom:false}))}:t));}}
-      const checkedCount=packing.filter(i=>i.checked).length;
-      const total=packing.length;
-      const displayed=packFilter==="done"?packing.filter(i=>i.checked):packFilter==="todo"?packing.filter(i=>!i.checked):packing;
-      return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 100px"}}><style>{css}</style>{toastEl}
-        <div style={{maxWidth:480,margin:"0 auto"}}>
-          <button onClick={()=>setSub(null)} style={BK}><ChevronLeft size={18}/>חזרה</button>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",margin:"16px 0 6px"}}>
-            <h2 style={{fontSize:22,fontWeight:800,display:"flex",alignItems:"center",gap:8}}>🎒 רשימת ציוד</h2>
-            <button onClick={resetList} style={{fontSize:11,color:"var(--text2)",background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontFamily:"Heebo,system-ui"}}>איפוס</button>
-          </div>
-          {/* Progress */}
-          <div style={{...C,marginBottom:16,padding:"14px 18px"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-              <span style={{fontSize:13,fontWeight:700,color:"var(--text)"}}>{checkedCount} מתוך {total} פריטים</span>
-              <span style={{fontSize:12,color:"var(--accent)",fontWeight:700}}>{total?Math.round(checkedCount/total*100):0}%</span>
-            </div>
-            <div style={{height:8,borderRadius:4,background:"var(--border)",overflow:"hidden"}}>
-              <div style={{height:"100%",borderRadius:4,width:`${total?checkedCount/total*100:0}%`,background:"linear-gradient(90deg,#1E5BD6,#3FB5E8)",transition:"width .3s"}}/>
-            </div>
-          </div>
-          {/* Filter */}
-          <div style={{display:"flex",gap:6,marginBottom:16}}>
-            {[["all","הכל"],["todo","עדיין חסר"],["done","נארז ✓"]].map(([v,l])=>(
-              <button key={v} onClick={()=>setPackFilter(v)} style={{flex:1,padding:"7px 0",borderRadius:10,border:packFilter===v?"2px solid var(--accent)":"1px solid var(--border)",background:packFilter===v?"rgba(30,91,214,0.08)":"var(--card)",fontSize:12,fontWeight:700,color:packFilter===v?"var(--accent)":"var(--text2)",cursor:"pointer",fontFamily:"Heebo,system-ui"}}>{l}</button>
-            ))}
-          </div>
-          {/* Items by category */}
-          {PACK_CATS.map(cat=>{
-            const items=displayed.filter(i=>i.cat===cat.id);
-            if(!items.length)return null;
-            return(<div key={cat.id} style={{marginBottom:18}}>
-              <div style={{fontSize:13,fontWeight:800,color:cat.color,marginBottom:8,display:"flex",alignItems:"center",gap:6}}>{cat.label}<span style={{fontSize:11,color:"var(--text2)",fontWeight:500}}>({items.filter(i=>i.checked).length}/{items.length})</span></div>
-              {items.map(item=>(
-                <div key={item.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:"var(--card)",borderRadius:14,border:"1px solid var(--border)",marginBottom:6,opacity:item.checked?.6:1,transition:"opacity .2s"}}>
-                  <button onClick={()=>toggleItem(item.id)} style={{width:24,height:24,borderRadius:7,border:item.checked?`2px solid ${cat.color}`:"2px solid var(--border)",background:item.checked?cat.color:"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,transition:"all .15s"}}>
-                    {item.checked&&<svg width="13" height="10" viewBox="0 0 13 10"><path d="M1 5l3.5 3.5L12 1" stroke="#fff" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                  </button>
-                  <span style={{flex:1,fontSize:14,fontWeight:500,color:"var(--text)",textDecoration:item.checked?"line-through":"none"}}>{item.text}</span>
-                  {item.custom&&<button onClick={()=>removeItem(item.id)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--text2)",padding:2,display:"flex",opacity:.5}}><X size={14}/></button>}
-                </div>
-              ))}
-            </div>);
-          })}
-          {/* Add custom */}
-          <div style={{...C,marginTop:8}}>
-            <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:10}}>הוסף פריט</div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:10}}>
-              {PACK_CATS.map(cat=>(
-                <button key={cat.id} onClick={()=>setPackCat(cat.id)} style={{padding:"5px 10px",borderRadius:9,border:packCat===cat.id?`2px solid ${cat.color}`:"1px solid var(--border)",background:packCat===cat.id?cat.color+"18":"var(--bg)",fontSize:11,fontWeight:600,cursor:"pointer",color:packCat===cat.id?cat.color:"var(--text2)",fontFamily:"Heebo,system-ui"}}>{cat.label}</button>
-              ))}
-            </div>
-            <div style={{display:"flex",gap:8}}>
-              <input style={{...I,flex:1}} placeholder="פריט חדש..." value={packInput} onChange={e=>setPackInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")addCustom();}}/>
-              <button onClick={addCustom} style={{width:48,height:48,borderRadius:14,border:"none",background:"var(--accent)",color:"#fff",fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Plus size={20}/></button>
-            </div>
-          </div>
-        </div>
-      </div>);
-    }
 
     if(sub==="addExpense"||sub==="editExpense"){
       const isE=sub==="editExpense";const exp=isE?editExp:newExp;const setE=isE?setEditExp:setNewExp;
@@ -1961,7 +1898,7 @@ export default function App(){
           <div style={{position:"relative"}}>
             <button onClick={()=>setMenuOpen(!menuOpen)} style={{background:"none",border:"none",cursor:"pointer",padding:8}}><MoreVertical size={20} color="var(--text2)"/></button>
             {menuOpen&&<><div onClick={()=>setMenuOpen(false)} style={{position:"fixed",top:0,left:0,right:0,bottom:0,zIndex:60}}/><div style={{position:"absolute",top:"100%",right:0,width:230,background:"rgba(20,24,32,0.98)",border:"1px solid var(--border)",borderRadius:18,boxShadow:"0 12px 40px rgba(0,0,0,.6)",zIndex:70,overflow:"hidden",backdropFilter:"blur(30px)",animation:"fadeUp .15s"}}>
-              {[{Icon:UserPlus,l:"Add Friend",a:()=>{setSub("addFriend");setMenuOpen(false)}},{Icon:Pencil,l:"Edit Trip",a:()=>{setEditTripForm({name:trip.name,country:trip.country,budget:trip.budget,currency:trip.currency,startDate:trip.startDate,endDate:trip.endDate});setSub("editTrip");setMenuOpen(false)}},{Icon:FileText,l:"Documents",a:()=>{setTab("files");setSub(null);setMenuOpen(false)}},{Icon:ShoppingBag,l:"רשימת ציוד",a:()=>{if(!trip.packing||!trip.packing.length){const DINIT=[{cat:"docs",text:"דרכון"},{cat:"docs",text:"ויזה (אם נדרשת)"},{cat:"docs",text:"כרטיסי טיסה (דיגיטל/הדפסה)"},{cat:"docs",text:"ביטוח נסיעות"},{cat:"docs",text:"כרטיסי אשראי (2 לפחות)"},{cat:"docs",text:"מזומן במטבע מקומי"},{cat:"docs",text:"רישיון נהיגה"},{cat:"docs",text:"צילום דרכון (גיבוי)"},{cat:"clothing",text:"חולצות (5-7)"},{cat:"clothing",text:"מכנסיים / שורטס"},{cat:"clothing",text:"תחתונים וגרביים"},{cat:"clothing",text:"נעליים נוחות"},{cat:"clothing",text:"כפכפים"},{cat:"clothing",text:"בגד ים"},{cat:"clothing",text:"מעיל / סוודר"},{cat:"clothing",text:"כובע שמש"},{cat:"clothing",text:"פיג'מה"},{cat:"health",text:"תרופות אישיות"},{cat:"health",text:"משכך כאבים (אדוויל / אקמול)"},{cat:"health",text:"תרופות לשלשול"},{cat:"health",text:"קרם הגנה SPF 50+"},{cat:"health",text:"תרסיס נגד יתושים"},{cat:"health",text:"פלסטרים + חבישות"},{cat:"health",text:"תרופות לבחילה (טיסה/ים)"},{cat:"health",text:"אנטיביוטיקה (לפי צורך)"},{cat:"electronics",text:"טלפון + מטען"},{cat:"electronics",text:"פאוור בנק"},{cat:"electronics",text:"אוזניות"},{cat:"electronics",text:"אדפטור / ממיר שקעים"},{cat:"electronics",text:"כבל USB-C"},{cat:"electronics",text:"מצלמה + מטען"},{cat:"electronics",text:"כרטיס זיכרון (SD)"},{cat:"toiletries",text:"מברשת שיניים + משחה"},{cat:"toiletries",text:"שמפו + מרכך"},{cat:"toiletries",text:"סבון גוף"},{cat:"toiletries",text:"מגלח"},{cat:"toiletries",text:"דאודורנט"},{cat:"toiletries",text:"קרם לחות"},{cat:"toiletries",text:"מגבת מיקרופייבר"},{cat:"general",text:"תיק גב קטן (לטיולים יומיים)"},{cat:"general",text:"בקבוק מים (ניתן למילוי)"},{cat:"general",text:"מנעול למזוודה"},{cat:"general",text:"שקיות זיפלוק"},{cat:"general",text:"ספר / קינדל"},{cat:"general",text:"אטמי אוזניים"},{cat:"general",text:"מסכת שינה"},{cat:"general",text:"כרית צוואר (לטיסה)"},{cat:"general",text:"מטריה קטנה"}];setTrips(p=>p.map(t=>t.id===activeTrip?{...t,packing:DINIT.map(i=>({...i,id:gid(),checked:false,custom:false}))}:t));}setSub("packing");setMenuOpen(false)}},{Icon:Download,l:"Export CSV",a:()=>{setSub("exportView");setMenuOpen(false)}},{Icon:Share2,l:"Share",a:()=>{setSub("shareView");setMenuOpen(false)}},{Icon:Settings,l:"Settings",a:()=>{setSub("settings");setMenuOpen(false)}}].map(({Icon,l,a},i)=>
+              {[{Icon:UserPlus,l:"Add Friend",a:()=>{setSub("addFriend");setMenuOpen(false)}},{Icon:Pencil,l:"Edit Trip",a:()=>{setEditTripForm({name:trip.name,country:trip.country,budget:trip.budget,currency:trip.currency,startDate:trip.startDate,endDate:trip.endDate});setSub("editTrip");setMenuOpen(false)}},{Icon:FileText,l:"Documents",a:()=>{setTab("files");setSub(null);setMenuOpen(false)}},{Icon:Download,l:"Export CSV",a:()=>{setSub("exportView");setMenuOpen(false)}},{Icon:Share2,l:"Share",a:()=>{setSub("shareView");setMenuOpen(false)}},{Icon:Settings,l:"Settings",a:()=>{setSub("settings");setMenuOpen(false)}}].map(({Icon,l,a},i)=>
                 <button key={i} onClick={a} style={{width:"100%",padding:"14px 18px",background:"none",border:"none",borderTop:i?"1px solid var(--border)":"none",color:"#fff",cursor:"pointer",fontFamily:"Heebo,system-ui",fontSize:14,fontWeight:500,textAlign:"left",display:"flex",alignItems:"center",gap:12}}><Icon size={18} color="rgba(255,255,255,0.55)"/>{l}</button>)}
             </div></>}</div></div>
 
@@ -2040,60 +1977,93 @@ export default function App(){
       </div><TabBar/></div>);
     }
 
-    /* ═══ PLAN — visit points + shopping list (to-do style) ═══ */
+    /* ═══ PLAN — visit points + shopping list + packing list (to-do style) ═══ */
     if(tab==="plan"){
-      const listKey=planTab==="visits"?"visits":"shopping";
-      const items=trip[listKey]||[];
-      const accent=planTab==="visits"?"#1E5BD6":"#00A676";
-      const done=items.filter(i=>i.checked).length,total=items.length;
-      function addItem(){if(!planInput.trim())return;const it={id:gid(),text:planInput.trim(),checked:false};setTrips(p=>p.map(t=>t.id===activeTrip?{...t,[listKey]:[...(t[listKey]||[]),it]}:t));setPlanInput("");}
-      function toggle(id){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,[listKey]:(t[listKey]||[]).map(i=>i.id===id?{...i,checked:!i.checked}:i)}:t));}
-      function del(id){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,[listKey]:(t[listKey]||[]).filter(i=>i.id!==id)}:t));}
-      const TABS=[{id:"visits",emoji:"📍",l:"נקודות ביקור",ph:"מקום שתרצה לבקר בו..."},{id:"shopping",emoji:"🛒",l:"קניות",ph:"מה צריך לקנות..."}];
+      const TABS=[
+        {id:"visits",emoji:"📍",l:"ביקור",ph:"מקום שתרצה לבקר בו...",empty:["עדיין אין נקודות ביקור","הוסף אטרקציות ומקומות שתרצה לראות"],doneWord:"בוצעו"},
+        {id:"shopping",emoji:"🛒",l:"קניות",ph:"מה צריך לקנות...",empty:["הרשימה ריקה","הוסף פריטים שצריך לקנות לטיול"],doneWord:"נקנו"},
+        {id:"packing",emoji:"🎒",l:"ציוד",doneWord:"נארזו"},
+      ];
+      const accentOf={visits:"#1E5BD6",shopping:"#00A676",packing:"#8854d0"};
+      const accent=accentOf[planTab];
       const cur=TABS.find(t=>t.id===planTab);
+      function toggleK(key,id){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,[key]:(t[key]||[]).map(i=>i.id===id?{...i,checked:!i.checked}:i)}:t));}
+      function delK(key,id){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,[key]:(t[key]||[]).filter(i=>i.id!==id)}:t));}
+      function addSimple(){if(!planInput.trim())return;const it={id:gid(),text:planInput.trim(),checked:false};setTrips(p=>p.map(t=>t.id===activeTrip?{...t,[planTab]:[...(t[planTab]||[]),it]}:t));setPlanInput("");}
+      function addPack(){if(!packInput.trim())return;const it={id:gid(),text:packInput.trim(),cat:packCat,checked:false,custom:true};setTrips(p=>p.map(t=>t.id===activeTrip?{...t,packing:[...(t.packing||[]),it]}:t));setPackInput("");}
+      function loadDefaults(){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,packing:[...(t.packing||[]),...PACKING_DEFAULTS.map(i=>({...i,id:gid(),checked:false,custom:false}))]}:t));show("נטענה רשימה מומלצת");}
+      const cb=(checked,color)=><button style={{width:24,height:24,borderRadius:7,border:checked?`2px solid ${color}`:"2px solid var(--border)",background:checked?color:"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,transition:"all .15s"}}>{checked&&<svg width="13" height="10" viewBox="0 0 13 10"><path d="M1 5l3.5 3.5L12 1" stroke="#fff" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}</button>;
       return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"16px 16px 100px"}}><style>{css}</style>{toastEl}<div style={{maxWidth:480,margin:"0 auto"}}>
         <h2 style={{fontSize:22,fontWeight:800,marginBottom:16,display:"flex",alignItems:"center",gap:8}}><MapPin size={22} style={{color:"var(--accent)"}}/>תכנון הטיול</h2>
         {/* List switcher */}
         <div style={{display:"flex",gap:6,background:"var(--card2)",borderRadius:14,padding:4,marginBottom:18}}>
           {TABS.map(t=>(
-            <button key={t.id} onClick={()=>setPlanTab(t.id)} style={{flex:1,padding:"10px 0",borderRadius:11,border:"none",cursor:"pointer",fontWeight:800,fontSize:13,fontFamily:"Heebo,system-ui",background:planTab===t.id?"#fff":"transparent",color:planTab===t.id?"var(--accent)":"var(--text2)",boxShadow:planTab===t.id?"var(--shadow)":"none",transition:"all .2s",display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>
+            <button key={t.id} onClick={()=>setPlanTab(t.id)} style={{flex:1,padding:"10px 0",borderRadius:11,border:"none",cursor:"pointer",fontWeight:800,fontSize:13,fontFamily:"Heebo,system-ui",background:planTab===t.id?"#fff":"transparent",color:planTab===t.id?"var(--accent)":"var(--text2)",boxShadow:planTab===t.id?"var(--shadow)":"none",transition:"all .2s",display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
               <span>{t.emoji}</span>{t.l}
             </button>
           ))}
         </div>
-        {/* Add */}
-        <div style={{...C,marginBottom:16,padding:"14px 16px"}}>
-          <div style={{display:"flex",gap:8}}>
-            <input style={{...I,flex:1}} placeholder={cur.ph} value={planInput} onChange={e=>setPlanInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")addItem();}}/>
-            <button onClick={addItem} style={{width:48,height:48,borderRadius:14,border:"none",background:accent,color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Plus size={20}/></button>
-          </div>
-        </div>
-        {/* Progress */}
-        {total>0&&<div style={{...C,marginBottom:16,padding:"14px 18px"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-            <span style={{fontSize:13,fontWeight:700}}>{done} מתוך {total} {planTab==="visits"?"בוצעו":"נקנו"}</span>
-            <span style={{fontSize:12,color:accent,fontWeight:700}}>{Math.round(done/total*100)}%</span>
-          </div>
-          <div style={{height:8,borderRadius:4,background:"var(--border)",overflow:"hidden"}}>
-            <div style={{height:"100%",borderRadius:4,width:`${done/total*100}%`,background:accent,transition:"width .3s"}}/>
-          </div>
-        </div>}
-        {/* Items */}
-        {total===0
-          ?<div style={{textAlign:"center",padding:"50px 20px",color:"var(--text2)"}}>
-             <div style={{fontSize:52,marginBottom:12}}>{cur.emoji}</div>
-             <p style={{fontWeight:700,fontSize:16,color:"var(--text)",marginBottom:6}}>{planTab==="visits"?"עדיין אין נקודות ביקור":"הרשימה ריקה"}</p>
-             <p style={{fontSize:13}}>{planTab==="visits"?"הוסף אטרקציות ומקומות שתרצה לראות":"הוסף פריטים שצריך לקנות לטיול"}</p>
-           </div>
-          :items.map(item=>(
-            <div key={item.id} style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",background:"var(--card)",borderRadius:14,border:"1px solid var(--border)",marginBottom:7,opacity:item.checked?.55:1,transition:"opacity .2s"}}>
-              <button onClick={()=>toggle(item.id)} style={{width:24,height:24,borderRadius:7,border:item.checked?`2px solid ${accent}`:"2px solid var(--border)",background:item.checked?accent:"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,transition:"all .15s"}}>
-                {item.checked&&<svg width="13" height="10" viewBox="0 0 13 10"><path d="M1 5l3.5 3.5L12 1" stroke="#fff" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-              </button>
-              <span style={{flex:1,fontSize:14,fontWeight:500,color:"var(--text)",textDecoration:item.checked?"line-through":"none"}}>{item.text}</span>
-              <button onClick={()=>del(item.id)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--text2)",padding:2,display:"flex",opacity:.5}}><X size={15}/></button>
+        {planTab==="packing"?(()=>{
+          const packing=trip.packing||[];
+          const done=packing.filter(i=>i.checked).length,total=packing.length;
+          const displayed=packFilter==="done"?packing.filter(i=>i.checked):packFilter==="todo"?packing.filter(i=>!i.checked):packing;
+          return(<>
+            {/* Add with category */}
+            <div style={{...C,marginBottom:16,padding:"14px 16px"}}>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:10}}>
+                {PACK_CATS.map(c=>(<button key={c.id} onClick={()=>setPackCat(c.id)} style={{padding:"5px 10px",borderRadius:9,border:packCat===c.id?`2px solid ${c.color}`:"1px solid var(--border)",background:packCat===c.id?c.color+"18":"var(--bg)",fontSize:11,fontWeight:600,cursor:"pointer",color:packCat===c.id?c.color:"var(--text2)",fontFamily:"Heebo,system-ui"}}>{c.label}</button>))}
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                <input style={{...I,flex:1}} placeholder="פריט ציוד חדש..." value={packInput} onChange={e=>setPackInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")addPack();}}/>
+                <button onClick={addPack} style={{width:48,height:48,borderRadius:14,border:"none",background:accent,color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Plus size={20}/></button>
+              </div>
             </div>
-          ))}
+            {total>0&&<div style={{...C,marginBottom:16,padding:"14px 18px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><span style={{fontSize:13,fontWeight:700}}>{done} מתוך {total} נארזו</span><span style={{fontSize:12,color:accent,fontWeight:700}}>{Math.round(done/total*100)}%</span></div>
+              <div style={{height:8,borderRadius:4,background:"var(--border)",overflow:"hidden"}}><div style={{height:"100%",borderRadius:4,width:`${done/total*100}%`,background:accent,transition:"width .3s"}}/></div>
+            </div>}
+            {total>0&&<div style={{display:"flex",gap:6,marginBottom:16}}>
+              {[["all","הכל"],["todo","עדיין חסר"],["done","נארז ✓"]].map(([v,l])=>(<button key={v} onClick={()=>setPackFilter(v)} style={{flex:1,padding:"7px 0",borderRadius:10,border:packFilter===v?`2px solid ${accent}`:"1px solid var(--border)",background:packFilter===v?accent+"14":"var(--card)",fontSize:12,fontWeight:700,color:packFilter===v?accent:"var(--text2)",cursor:"pointer",fontFamily:"Heebo,system-ui"}}>{l}</button>))}
+            </div>}
+            {total===0
+              ?<div style={{textAlign:"center",padding:"40px 20px",color:"var(--text2)"}}>
+                 <div style={{fontSize:52,marginBottom:12}}>🎒</div>
+                 <p style={{fontWeight:700,fontSize:16,color:"var(--text)",marginBottom:6}}>רשימת הציוד ריקה</p>
+                 <p style={{fontSize:13,marginBottom:18}}>טען רשימה מומלצת (~48 פריטים) או הוסף בעצמך למעלה</p>
+                 <button onClick={loadDefaults} style={{...B1,maxWidth:280,margin:"0 auto"}}>✨ טען רשימת ציוד מומלצת</button>
+               </div>
+              :PACK_CATS.map(c=>{const its=displayed.filter(i=>i.cat===c.id);if(!its.length)return null;return(<div key={c.id} style={{marginBottom:18}}>
+                 <div style={{fontSize:13,fontWeight:800,color:c.color,marginBottom:8,display:"flex",alignItems:"center",gap:6}}>{c.label}<span style={{fontSize:11,color:"var(--text2)",fontWeight:500}}>({its.filter(i=>i.checked).length}/{its.length})</span></div>
+                 {its.map(item=>(<div key={item.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:"var(--card)",borderRadius:14,border:"1px solid var(--border)",marginBottom:6,opacity:item.checked?.55:1,transition:"opacity .2s"}}>
+                   <span onClick={()=>toggleK("packing",item.id)}>{cb(item.checked,c.color)}</span>
+                   <span style={{flex:1,fontSize:14,fontWeight:500,color:"var(--text)",textDecoration:item.checked?"line-through":"none"}}>{item.text}</span>
+                   <button onClick={()=>delK("packing",item.id)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--text2)",padding:2,display:"flex",opacity:.5}}><X size={15}/></button>
+                 </div>))}
+               </div>);})}
+          </>);
+        })():(()=>{
+          const items=trip[planTab]||[];
+          const done=items.filter(i=>i.checked).length,total=items.length;
+          return(<>
+            <div style={{...C,marginBottom:16,padding:"14px 16px"}}>
+              <div style={{display:"flex",gap:8}}>
+                <input style={{...I,flex:1}} placeholder={cur.ph} value={planInput} onChange={e=>setPlanInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")addSimple();}}/>
+                <button onClick={addSimple} style={{width:48,height:48,borderRadius:14,border:"none",background:accent,color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Plus size={20}/></button>
+              </div>
+            </div>
+            {total>0&&<div style={{...C,marginBottom:16,padding:"14px 18px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><span style={{fontSize:13,fontWeight:700}}>{done} מתוך {total} {cur.doneWord}</span><span style={{fontSize:12,color:accent,fontWeight:700}}>{Math.round(done/total*100)}%</span></div>
+              <div style={{height:8,borderRadius:4,background:"var(--border)",overflow:"hidden"}}><div style={{height:"100%",borderRadius:4,width:`${done/total*100}%`,background:accent,transition:"width .3s"}}/></div>
+            </div>}
+            {total===0
+              ?<div style={{textAlign:"center",padding:"50px 20px",color:"var(--text2)"}}><div style={{fontSize:52,marginBottom:12}}>{cur.emoji}</div><p style={{fontWeight:700,fontSize:16,color:"var(--text)",marginBottom:6}}>{cur.empty[0]}</p><p style={{fontSize:13}}>{cur.empty[1]}</p></div>
+              :items.map(item=>(<div key={item.id} style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",background:"var(--card)",borderRadius:14,border:"1px solid var(--border)",marginBottom:7,opacity:item.checked?.55:1,transition:"opacity .2s"}}>
+                 <span onClick={()=>toggleK(planTab,item.id)}>{cb(item.checked,accent)}</span>
+                 <span style={{flex:1,fontSize:14,fontWeight:500,color:"var(--text)",textDecoration:item.checked?"line-through":"none"}}>{item.text}</span>
+                 <button onClick={()=>delK(planTab,item.id)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--text2)",padding:2,display:"flex",opacity:.5}}><X size={15}/></button>
+               </div>))}
+          </>);
+        })()}
       </div><TabBar/></div>);
     }
 
