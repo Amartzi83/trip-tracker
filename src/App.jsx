@@ -405,7 +405,15 @@ export default function App(){
     const unsubShared=watchSharedTrips(myEmail,docs=>{
       const incoming=docs.map(d=>({...d,isShared:true}));
       const ids=new Set(incoming.map(d=>d.id));
-      incoming.forEach(d=>{sharedJson.current[d.id]=JSON.stringify(stripFlag(d));});
+      incoming.forEach(d=>{
+        const cj=JSON.stringify(stripFlag(d));
+        const prev=sharedJson.current[d.id];
+        // notify when a *different* member edited an already-known shared trip
+        if(prev!==undefined&&prev!==cj&&d.lastEditedBy&&d.lastEditedBy!==myEmail){
+          show(`🔄 "${d.name||"טיול"}" עודכן ע"י ${(d.lastEditedBy||"").split("@")[0]}`);
+        }
+        sharedJson.current[d.id]=cj;
+      });
       Object.keys(sharedJson.current).forEach(id=>{if(!ids.has(id))delete sharedJson.current[id];});
       setTrips(cur=>[...cur.filter(t=>!t.isShared),...incoming]);
       setCloudStatus("saved");
@@ -423,12 +431,13 @@ export default function App(){
     const personalChanged=pj!==personalJson.current;
     const changedShared=shared.filter(t=>JSON.stringify(stripFlag(t))!==sharedJson.current[t.id]);
     if(!personalChanged&&!changedShared.length)return;
+    const myEmail=(authUser.email||"").toLowerCase();
     setCloudStatus("saving");
     if(cloudSaveTimer.current)clearTimeout(cloudSaveTimer.current);
     cloudSaveTimer.current=setTimeout(async()=>{
       try{
         if(personalChanged){await saveUserData(authUser.uid,{trips:personal,userName});personalJson.current=pj;}
-        for(const t of changedShared){const clean=stripFlag(t);await saveSharedTrip(clean);sharedJson.current[t.id]=JSON.stringify(clean);}
+        for(const t of changedShared){const clean={...stripFlag(t),lastEditedBy:myEmail};await saveSharedTrip(clean);sharedJson.current[t.id]=JSON.stringify(clean);}
         setCloudStatus("saved");
       }catch{setCloudStatus("error");}
     },1200);
