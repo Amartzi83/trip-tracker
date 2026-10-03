@@ -3,7 +3,9 @@
 // itinerary segments from an uploaded document (image or PDF).
 // The user's API key is passed in (stored privately, never bundled).
 // ─────────────────────────────────────────────────────────────
-const MODEL = "gemini-2.0-flash";
+// "…-latest" tracks the current Flash model, so the app keeps working as Google
+// retires old versions (gemini-2.0 / 2.5 are already gone for new keys).
+const MODEL = "gemini-flash-latest";
 
 const PROMPT = `You parse travel documents (flight tickets, hotel/car-rental confirmations, train tickets, booking emails).
 Extract EVERY travel segment you find. Return ONLY a JSON array (no markdown, no prose).
@@ -41,8 +43,9 @@ export async function extractItinerary(apiKey, base64Data, mimeType) {
   if (!res.ok) {
     let msg = `שגיאה ${res.status}`;
     try { const e = await res.json(); if (e?.error?.message) msg = e.error.message; } catch {}
-    if (res.status === 401) msg = "המפתח לא התקבל. ודא שזה מפתח Gemini מ-aistudio.google.com/apikey (מתחיל ב-AIza)";
-    else if (res.status === 400 || res.status === 403) msg = "מפתח לא תקין או ללא הרשאה ל-Generative Language API (מתחיל ב-AIza)";
+    if (res.status === 401) msg = "המפתח לא התקבל. ודא שהעתקת את מפתח ה-Gemini המלא מ-aistudio.google.com/apikey";
+    else if (res.status === 400 || res.status === 403) msg = "מפתח לא תקין או ללא הרשאה ל-Generative Language API";
+    else if (res.status === 404) msg = "מודל ה-AI לא זמין יותר — צריך לעדכן את האפליקציה";
     else if (res.status === 429) msg = "חרגת ממכסת ה-AI החינמית — נסה שוב מאוחר יותר";
     throw new Error(msg);
   }

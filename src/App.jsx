@@ -732,7 +732,7 @@ export default function App(){
   function newSeg(type){setEditSeg({id:gid(),type,title:"",from:"",to:"",provider:"",confirmation:"",seat:"",location:"",note:"",startDate:trip?.startDate||"",startTime:"",endDate:"",endTime:""});setSub("editSeg");}
   function saveSeg(){if(!editSeg)return;const s={...editSeg};setTrips(p=>p.map(t=>t.id===activeTrip?{...t,itinerary:(t.itinerary||[]).some(x=>x.id===s.id)?(t.itinerary||[]).map(x=>x.id===s.id?s:x):[...(t.itinerary||[]),s]}:t));setEditSeg(null);setSub(null);show("נשמר ✓");}
   function delSeg(id){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,itinerary:(t.itinerary||[]).filter(x=>x.id!==id)}:t));setEditSeg(null);setSub(null);show("נמחק");}
-  function saveGeminiKey(){const k=geminiDraft.trim();if(!k){show("הדבק מפתח");return;}setGeminiKey(k);setGeminiDraft('');show(k.startsWith("AIza")?"✓ מפתח AI נשמר":"נשמר — שים לב: מפתח Gemini אמור להתחיל ב-AIza");}
+  function saveGeminiKey(){const k=geminiDraft.trim();if(!k){show("הדבק מפתח");return;}setGeminiKey(k);setGeminiDraft('');show("✓ מפתח AI נשמר");}
   async function runScan(b64,mime){
     const segs=await extractItinerary(geminiKey,b64,mime);
     if(!segs.length){show("לא זוהו פריטי מסלול בקובץ");return;}
@@ -1824,7 +1824,7 @@ export default function App(){
              </div>
             :<div>
                <div style={{display:"flex",gap:8}}>
-                 <input style={{...I,flex:1,direction:"ltr",textAlign:"left",fontFamily:"monospace",fontSize:12}} type="password" placeholder="AIza..." value={geminiDraft} onChange={e=>setGeminiDraft(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")saveGeminiKey();}}/>
+                 <input style={{...I,flex:1,direction:"ltr",textAlign:"left",fontFamily:"monospace",fontSize:12}} type="password" placeholder="AQ.… או AIza…" value={geminiDraft} onChange={e=>setGeminiDraft(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")saveGeminiKey();}}/>
                  <button onClick={saveGeminiKey} style={{...B1,width:"auto",padding:"0 18px"}}>שמור</button>
                </div>
                <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:"var(--accent)",marginTop:8,display:"inline-block"}}>קבל מפתח חינמי →</a>
