@@ -578,7 +578,19 @@ export default function App(){
   function addFriend(){if(!shareEmail.trim()||!trip)return;const u={email:shareEmail.trim(),role:shareRole};setTrips(p=>p.map(t=>t.id===activeTrip?{...t,shared:[...(t.shared||[]),u]}:t));setShareEmail("");show(`Added ${u.email}`)}
   function removeFriend(email){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,shared:(t.shared||[]).filter(u=>u.email!==email)}:t))}
   function saveEditTrip(){if(!editTripForm)return;setTrips(p=>p.map(t=>t.id===activeTrip?{...t,...editTripForm,budget:parseFloat(editTripForm.budget)||0}:t));setEditTripForm(null);setSub(null);show("Updated!")}
-  function getCSV(){if(!trip)return"";const r=[["Date","Category","Amount","Currency",`Converted(${trip.currency})`,"Note","Type"]];trip.expenses.forEach(e=>{const c=CATS.find(x=>x.id===e.category);r.push([e.date||"General",c?.name||e.category,e.amount,e.currency,cv(e.amount,e.currency,trip.currency).toFixed(2),e.note,e.date?"Dated":"General"])});return r.map(r=>r.map(c=>`"${c}"`).join(",")).join("\n")}
+  function getCSV(){
+    if(!trip)return"";
+    const q=c=>`"${String(c==null?"":c).replace(/"/g,'""')}"`;
+    const lines=[];
+    // ── Expenses ──
+    lines.push(["Date","Category","Amount","Currency",`Converted(${trip.currency})`,"Note","Type"].map(q).join(","));
+    trip.expenses.forEach(e=>{const c=CATS.find(x=>x.id===e.category);lines.push([e.date||"General",c?.name||e.category,e.amount,e.currency,cv(e.amount,e.currency,trip.currency).toFixed(2),e.note,e.date?"Dated":"General"].map(q).join(","));});
+    const section=(title,items,header,statusOf)=>{if(!items||!items.length)return;lines.push("");lines.push(q(title));lines.push(header.map(q).join(","));items.forEach(it=>lines.push([it.text,statusOf(it)].map(q).join(",")));};
+    section("נקודות ביקור / Visit Points",trip.visits,["Place","Status"],it=>it.checked?"בוצע / Done":"לביצוע / To do");
+    section("רשימת קניות / Shopping",trip.shopping,["Item","Status"],it=>it.checked?"נקנה / Bought":"לקנות / To buy");
+    section("רשימת ציוד / Packing",trip.packing,["Item","Status"],it=>it.checked?"נארז / Packed":"לארוז / To pack");
+    return lines.join("\n");
+  }
   function getShareText(){if(!trip)return"";return`✈️ ${trip.name}\n📅 ${trip.startDate||"?"} → ${trip.endDate||"?"}\n💰 ${fC(totalSpent,trip.currency)}\n📊 Budget: ${trip.budget?fC(trip.budget,trip.currency):"N/A"}\n📝 ${trip.expenses.length} expenses`}
 
   // ─── Translate via Google Translate (free, no API key) ───
@@ -1818,7 +1830,7 @@ export default function App(){
         const url=URL.createObjectURL(blob);
         const a=document.createElement('a');
         a.href=url;
-        a.download=`${(trip.name||'trip').replace(/[^a-z0-9]/gi,'_')}_expenses.csv`;
+        a.download=`${(trip.name||'trip').replace(/[^a-z0-9]/gi,'_')}_backup.csv`;
         document.body.appendChild(a);a.click();document.body.removeChild(a);
         URL.revokeObjectURL(url);
         show("Downloaded!");
@@ -1827,8 +1839,8 @@ export default function App(){
         <button onClick={()=>setSub(null)} style={BK}><ChevronLeft size={18}/>Back</button>
         <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 24px",display:"flex",alignItems:"center",gap:8}}><Download size={20} style={{color:"var(--accent)"}}/>Export</h2>
         <div style={{...C,marginBottom:16}}>
-          <button style={{...B1,display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:10}} onClick={dlCSV}><Download size={18}/>Download CSV File</button>
-          <p style={{fontSize:11,color:"var(--text2)",marginTop:4,textAlign:"center"}}>Open in Excel, Google Sheets or Numbers</p>
+          <button style={{...B1,display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:10}} onClick={dlCSV}><Download size={18}/>הורד קובץ CSV</button>
+          <p style={{fontSize:11,color:"var(--text2)",marginTop:4,textAlign:"center"}}>כולל הוצאות, נקודות ביקור, קניות וציוד · נפתח ב-Excel / Google Sheets</p>
         </div>
         <div style={{...C}}>
           <label style={L}>Preview</label>
