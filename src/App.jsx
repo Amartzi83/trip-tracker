@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { firebaseReady, onAuth, signUp, signIn, logOut, resetPassword, resendVerification, reloadUser, loadUserData, watchUserData, saveUserData, saveUserFile, loadUserFile, deleteUserFile, watchSharedTrips, saveSharedTrip, deleteSharedTrip, ensureDailyBackup, listBackups, authErrorText } from "./firebase";
 import { extractItinerary } from "./gemini";
-import { Plane, Plus, ChevronLeft, MoreVertical, ArrowLeftRight, Globe, Receipt, TrendingUp, Coffee, UtensilsCrossed, ShoppingBag, Hotel, Bus, Wine, HeartPulse, Smartphone, Gift, Shield, Shirt, MapPin, Ticket, Camera, Music, Landmark, Palmtree, Eye, Pencil, Download, Share2, Settings, Trash2, UserPlus, Volume2, X, Clock, CreditCard, Wallet, Users, Copy, ExternalLink, ChevronRight, Compass, Utensils, Beer, Baby, ShoppingCart, TreePine, Waves, Gem, Map, Route, DollarSign, Navigation, Globe2, Star, Sun, FileText, Upload, Cloud, CalendarDays, Link2, Wind } from "lucide-react";
+import { Plane, Plus, ChevronLeft, MoreVertical, ArrowLeftRight, Globe, Receipt, TrendingUp, Coffee, UtensilsCrossed, ShoppingBag, Hotel, Bus, Wine, HeartPulse, Smartphone, Gift, Shield, Shirt, MapPin, Ticket, Camera, Music, Landmark, Palmtree, Eye, Pencil, Download, Share2, Settings, Trash2, UserPlus, Volume2, X, Clock, CreditCard, Wallet, Users, Copy, ExternalLink, ChevronRight, Compass, Utensils, Beer, Baby, ShoppingCart, TreePine, Waves, Gem, Map, Route, DollarSign, Navigation, Globe2, Star, Sun, FileText, Upload, Cloud, CalendarDays, Link2, Wind, Sparkles } from "lucide-react";
 
 /* ═══════ DATA ═══════ */
 const CATS=[
@@ -733,41 +733,36 @@ export default function App(){
   function saveSeg(){if(!editSeg)return;const s={...editSeg};setTrips(p=>p.map(t=>t.id===activeTrip?{...t,itinerary:(t.itinerary||[]).some(x=>x.id===s.id)?(t.itinerary||[]).map(x=>x.id===s.id?s:x):[...(t.itinerary||[]),s]}:t));setEditSeg(null);setSub(null);show("נשמר ✓");}
   function delSeg(id){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,itinerary:(t.itinerary||[]).filter(x=>x.id!==id)}:t));setEditSeg(null);setSub(null);show("נמחק");}
   function saveGeminiKey(){const k=geminiDraft.trim();if(!k){show("הדבק מפתח");return;}setGeminiKey(k);setGeminiDraft('');show("✓ מפתח AI נשמר");}
-  async function runScan(b64,mime){
-    const segs=await extractItinerary(geminiKey,b64,mime);
-    if(!segs.length){show("לא זוהו פריטי מסלול בקובץ");return;}
-    const withIds=segs.map(s=>({...s,id:gid()}));
-    setTrips(p=>p.map(t=>t.id===activeTrip?{...t,itinerary:[...(t.itinerary||[]),...withIds]}:t));
-    show(`✓ זוהו ${withIds.length} פריטים — בדוק ותקן אם צריך`);
-  }
-  async function scanWithAI(e){
-    const f=e.target.files&&e.target.files[0];if(!f)return;e.target.value='';
-    if(!geminiKey){show("הוסף קודם מפתח AI");return;}
-    if(f.size>8*1024*1024){show("קובץ גדול מדי (עד 8MB)");return;}
-    setScanBusy(true);show("🔎 סורק עם AI…");
-    try{
-      let b64,mime;
-      if((f.type||'').startsWith('image/')){b64=(await compressImage(f)).split(',')[1];mime='image/jpeg';}
-      else{b64=(await fileToDataURL(f)).split(',')[1];mime=f.type||'application/pdf';}
-      await runScan(b64,mime);
-    }catch(err){show("שגיאת AI: "+(err?.message||"נסה שוב"));}
-    finally{setScanBusy(false);}
-  }
-  // Scan a file that's already in the trip's Files library (trip.docs).
-  async function scanExistingDoc(doc){
+  // Scan EVERY file in the trip's Files library (trip.docs) in one go, merging the
+  // detected segments into the itinerary. De-dupes by content so re-running (or
+  // adding new files and scanning again) never creates duplicates.
+  async function scanAllDocs(){
     if(scanBusy)return;
-    if(!geminiKey){show("הוסף קודם מפתח AI");return;}
-    setScanBusy(true);show(`🔎 סורק "${doc.name}"…`);
-    try{
-      let data=fileCache[doc.id];
-      if(!data&&authUser){data=await loadUserFile(authUser.uid,doc.id);if(data)setFileCache(c=>({...c,[doc.id]:data}));}
-      if(!data&&doc.data)data=doc.data;
-      if(!data){show("לא הצלחתי לטעון את הקובץ");return;}
-      const b64=data.split(',')[1];
-      const mime=(data.match(/^data:([^;]+);/)||[])[1]||doc.mimeType||'image/jpeg';
-      await runScan(b64,mime);
-    }catch(err){show("שגיאת AI: "+(err?.message||"נסה שוב"));}
-    finally{setScanBusy(false);}
+    if(!geminiKey){show("הוסף קודם מפתח AI בהגדרות");return;}
+    const docs=(trip&&trip.docs)||[];
+    if(!docs.length){show("אין קבצים לסריקה — העלה קבצים תחילה");return;}
+    const sig=s=>[s.type,(s.provider||'').toLowerCase().trim(),s.startDate||'',s.startTime||'',(s.from||'').toLowerCase().trim(),(s.to||'').toLowerCase().trim()].join('|');
+    const seen=new Set(((trip.itinerary)||[]).map(sig));
+    const collected=[];let added=0,failed=0;
+    setScanBusy(true);
+    for(let i=0;i<docs.length;i++){
+      const d=docs[i];
+      show(`🔎 סורק ${i+1}/${docs.length}: ${d.name}…`);
+      try{
+        let data=fileCache[d.id];
+        if(!data&&authUser){data=await loadUserFile(authUser.uid,d.id);if(data)setFileCache(c=>({...c,[d.id]:data}));}
+        if(!data&&d.data)data=d.data;
+        if(!data){failed++;continue;}
+        const b64=data.split(',')[1];
+        const mime=(data.match(/^data:([^;]+);/)||[])[1]||d.mimeType||'image/jpeg';
+        const segs=await extractItinerary(geminiKey,b64,mime);
+        for(const s of segs){const k=sig(s);if(!seen.has(k)){seen.add(k);collected.push({...s,id:gid()});added++;}}
+      }catch(err){failed++;}
+    }
+    if(collected.length)setTrips(p=>p.map(t=>t.id===activeTrip?{...t,itinerary:[...(t.itinerary||[]),...collected]}:t));
+    setScanBusy(false);
+    if(added)show(`✓ נוספו ${added} פריטים מ-${docs.length} קבצים${failed?` · ${failed} נכשלו`:""} — בדוק ותקן אם צריך`);
+    else show(failed?`לא זוהו פריטים חדשים · ${failed} קבצים נכשלו`:"לא זוהו פריטי מסלול חדשים בקבצים");
   }
   function getCSV(){
     if(!trip)return"";
@@ -2256,29 +2251,16 @@ export default function App(){
             {SEG_TYPES.map(st=>{const Ic=st.Icon;return(<button key={st.id} onClick={()=>newSeg(st.id)} style={{display:"flex",alignItems:"center",gap:6,padding:"8px 12px",borderRadius:12,border:`1.5px solid ${st.color}45`,background:st.color+"12",color:st.color,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"Heebo,system-ui"}}><Ic size={15}/>{st.l}</button>);})}
           </div>
         </div>
-        {/* AI scan */}
-        <input ref={scanInputRef} type="file" accept="image/*,application/pdf" style={{display:"none"}} onChange={scanWithAI}/>
+        {/* AI scan — one tap scans every file in the trip's Files library */}
         <div style={{...C,marginBottom:16,padding:"14px 16px"}}>
-          <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",letterSpacing:"1px",marginBottom:10}}>✨ סריקת AI</div>
           {geminiKey
             ?<>
-               <button onClick={()=>!scanBusy&&scanInputRef.current&&scanInputRef.current.click()} disabled={scanBusy} style={{...B1,opacity:scanBusy?.6:1,cursor:scanBusy?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}><Upload size={18}/>{scanBusy?"סורק…":"סרוק כרטיס / אישור (תמונה / PDF)"}</button>
-               <p style={{fontSize:11,color:"var(--text2)",marginTop:8,lineHeight:1.6}}>העלה כרטיס טיסה או אישור מלון — ה-AI יקרא וימלא את פרטי המסלול אוטומטית (הכול ניתן לעריכה).</p>
-               {(trip.docs||[]).length>0&&<div style={{marginTop:12,borderTop:"1px solid var(--border)",paddingTop:12}}>
-                 <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",marginBottom:8}}>או סרוק מהקבצים שכבר העלית:</div>
-                 <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:190,overflowY:"auto"}}>
-                   {(trip.docs||[]).map(d=>(
-                     <button key={d.id} disabled={scanBusy} onClick={()=>scanExistingDoc(d)} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:12,border:"1px solid var(--border)",background:"var(--card)",cursor:scanBusy?"default":"pointer",fontFamily:"Heebo,system-ui",textAlign:"right",opacity:scanBusy?.6:1}}>
-                       <FileText size={15} color="var(--accent)" style={{flexShrink:0}}/>
-                       <span style={{flex:1,fontSize:12.5,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.name}</span>
-                       <span style={{fontSize:11,fontWeight:700,color:"var(--accent)",flexShrink:0}}>סרוק ✨</span>
-                     </button>
-                   ))}
-                 </div>
-               </div>}
-               <button onClick={()=>{setGeminiKey("");show("המפתח הוסר");}} style={{background:"none",border:"none",color:"var(--text2)",fontSize:11,cursor:"pointer",textDecoration:"underline",marginTop:10,fontFamily:"Heebo,system-ui",padding:0}}>הסר מפתח AI</button>
+               <button onClick={scanAllDocs} disabled={scanBusy} style={{...B1,opacity:scanBusy?.6:1,cursor:scanBusy?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                 <Sparkles size={18}/>{scanBusy?"סורק…":`✨ סרוק את כל הקבצים${(trip.docs||[]).length?` (${(trip.docs||[]).length})`:""}`}</button>
+               <p style={{fontSize:11,color:"var(--text2)",marginTop:8,lineHeight:1.6}}>ה-AI יקרא את כל כרטיסי הטיסה והאישורים שהעלית ב"קבצים" וימלא את המסלול אוטומטית. אפשר להריץ שוב אחרי שמוסיפים קבצים — פריטים שכבר קיימים לא ישוכפלו.</p>
              </>
             :<>
+               <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",letterSpacing:"1px",marginBottom:10}}>✨ סריקת AI</div>
                <p style={{fontSize:12,color:"var(--text2)",lineHeight:1.6,marginBottom:10}}>כדי לסרוק קבצים אוטומטית, הוסף מפתח Gemini בהגדרות (⚙ בדף הבית → "חיבור AI").</p>
                <button onClick={()=>setScreen("syncSettings")} style={{...B2,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><Settings size={16}/>פתח הגדרות AI</button>
              </>}
