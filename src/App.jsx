@@ -1,6 +1,6 @@
 // v2.1
 import { useState, useEffect, useMemo, useRef } from "react";
-import { firebaseReady, onAuth, signUp, signIn, logOut, resetPassword, resendVerification, reloadUser, loadUserData, watchUserData, saveUserData, saveUserFile, loadUserFile, deleteUserFile, authErrorText } from "./firebase";
+import { firebaseReady, onAuth, signUp, signIn, logOut, resetPassword, resendVerification, reloadUser, loadUserData, watchUserData, saveUserData, saveUserFile, loadUserFile, deleteUserFile, watchSharedTrips, saveSharedTrip, deleteSharedTrip, authErrorText } from "./firebase";
 import { Plane, Plus, ChevronLeft, MoreVertical, ArrowLeftRight, Globe, Receipt, TrendingUp, Coffee, UtensilsCrossed, ShoppingBag, Hotel, Bus, Wine, HeartPulse, Smartphone, Gift, Shield, Shirt, MapPin, Ticket, Camera, Music, Landmark, Palmtree, Eye, Pencil, Download, Share2, Settings, Trash2, UserPlus, Volume2, X, Clock, CreditCard, Wallet, Users, Copy, ExternalLink, ChevronRight, Compass, Utensils, Beer, Baby, ShoppingCart, TreePine, Waves, Gem, Map, Route, DollarSign, Navigation, Globe2, Star, Sun, FileText, Upload, Cloud, CalendarDays, Link2, Wind } from "lucide-react";
 
 /* ═══════ DATA ═══════ */
@@ -211,6 +211,10 @@ export default function App(){
   const cloudSaveTimer=useRef(null);
   const[fileCache,setFileCache]=useState({});        // fileId -> data: URL (file contents live in a subcollection)
   const fileLoading=useRef({});                      // fileId -> true while being fetched
+  const personalJson=useRef("");                     // last personal {trips,userName} persisted/loaded (echo guard)
+  const sharedJson=useRef({});                       // tripId -> last shared-trip JSON persisted/loaded (echo guard)
+  const[shareInput,setShareInput]=useState("");      // email being invited to a trip
+  const[shareBusy,setShareBusy]=useState(false);
   const[authReset,setAuthReset]=useState(false);     // password-reset busy flag
   const[emailVerified,setEmailVerified]=useState(false); // current user's email verified?
   const[verifyBusy,setVerifyBusy]=useState(false);
@@ -267,10 +271,9 @@ export default function App(){
   const[trResult,setTrResult]=useState("");
   const[trLoading,setTrLoading]=useState(false);
   const[trHistory,setTrHistory]=useState([]);
-  const[shareEmail,setShareEmail]=useState("");
-  const[shareRole,setShareRole]=useState("viewer");
 
   const show=m=>{setToast(m);setTimeout(()=>setToast(null),2200)};
+  const stripFlag=({isShared,...rest})=>rest; // drop the transient UI-only "isShared" flag before persisting
 
   // ── GitHub Gist helpers ──
   async function loadFromGist(token,id){
@@ -382,30 +385,52 @@ export default function App(){
   //    from whatever trips live on this device (one-time migration). ──
   useEffect(()=>{
     if(!firebaseReady||!authUser||!emailVerified)return;
+    const myEmail=(authUser.email||"").toLowerCase();
     let seeded=false;
-    const unsub=watchUserData(authUser.uid,async data=>{
+    // Personal trips (users/{uid}) — keep any shared trips already in state.
+    const unsubUser=watchUserData(authUser.uid,data=>{
       if(data&&Array.isArray(data.trips)){
-        cloudLoading.current=true;              // suppress the echo-save this triggers
-        setTrips(data.trips);
+        personalJson.current=JSON.stringify({trips:data.trips,userName:(typeof data.userName==="string"?data.userName:"")});
+        setTrips(cur=>[...data.trips.map(t=>({...t,isShared:false})),...cur.filter(t=>t.isShared)]);
         if(typeof data.userName==="string")setUserName(data.userName);
         setCloudStatus("saved");
       }else if(!seeded){
-        seeded=true;                            // no cloud doc → upload this device's data
-        try{await saveUserData(authUser.uid,{trips,userName});}catch{}
+        seeded=true;                            // no cloud doc → upload this device's personal data
+        const personal=trips.filter(t=>!t.isShared).map(stripFlag);
+        saveUserData(authUser.uid,{trips:personal,userName}).catch(()=>{});
+        personalJson.current=JSON.stringify({trips:personal,userName});
       }
     });
-    return unsub;
+    // Shared trips (sharedTrips where I'm a member).
+    const unsubShared=watchSharedTrips(myEmail,docs=>{
+      const incoming=docs.map(d=>({...d,isShared:true}));
+      const ids=new Set(incoming.map(d=>d.id));
+      incoming.forEach(d=>{sharedJson.current[d.id]=JSON.stringify(stripFlag(d));});
+      Object.keys(sharedJson.current).forEach(id=>{if(!ids.has(id))delete sharedJson.current[id];});
+      setTrips(cur=>[...cur.filter(t=>!t.isShared),...incoming]);
+      setCloudStatus("saved");
+    });
+    return ()=>{unsubUser();unsubShared();};
   },[authUser,emailVerified]);
 
-  // ── Firebase: debounced save of trips/userName to the cloud ──
+  // ── Firebase: debounced save — personal trips to the user doc, each shared
+  //    trip to its own sharedTrips doc. Per-bucket JSON guards skip echo-saves. ──
   useEffect(()=>{
     if(!firebaseReady||!authUser||!emailVerified)return;
-    if(cloudLoading.current){cloudLoading.current=false;return;} // skip echoing a cloud snapshot back
+    const personal=trips.filter(t=>!t.isShared).map(stripFlag);
+    const shared=trips.filter(t=>t.isShared);
+    const pj=JSON.stringify({trips:personal,userName});
+    const personalChanged=pj!==personalJson.current;
+    const changedShared=shared.filter(t=>JSON.stringify(stripFlag(t))!==sharedJson.current[t.id]);
+    if(!personalChanged&&!changedShared.length)return;
     setCloudStatus("saving");
     if(cloudSaveTimer.current)clearTimeout(cloudSaveTimer.current);
     cloudSaveTimer.current=setTimeout(async()=>{
-      try{await saveUserData(authUser.uid,{trips,userName});setCloudStatus("saved");}
-      catch{setCloudStatus("error");}
+      try{
+        if(personalChanged){await saveUserData(authUser.uid,{trips:personal,userName});personalJson.current=pj;}
+        for(const t of changedShared){const clean=stripFlag(t);await saveSharedTrip(clean);sharedJson.current[t.id]=JSON.stringify(clean);}
+        setCloudStatus("saved");
+      }catch{setCloudStatus("error");}
     },1200);
   },[trips,userName,authUser,emailVerified]);
 
@@ -581,13 +606,34 @@ export default function App(){
   const dailyAvg=useMemo(()=>{if(!dated.length)return 0;const ds=dated.map(e=>e.date);return totalDated/dBtw(ds.reduce((a,b)=>a<b?a:b),ds.reduce((a,b)=>a>b?a:b))},[dated,totalDated]);
 
   // CRUD
-  function createTrip(){const n=newTrip.name.trim()||"My Trip";const id=gid();setTrips(p=>[...p,{id,...newTrip,name:n,budget:parseFloat(newTrip.budget)||0,expenses:[],shared:[]}]);setNewTrip({name:"",country:"",budget:"",currency:"USD",startDate:"",endDate:""});setActiveTrip(id);setScreen("trip");setTab("entries");show("Trip created!")}
-  function delTrip(id){setTrips(p=>p.filter(t=>t.id!==id));if(activeTrip===id){setActiveTrip(null);setScreen("myTrips")}}
+  function createTrip(){const n=newTrip.name.trim()||"My Trip";const id=gid();setTrips(p=>[...p,{id,...newTrip,name:n,budget:parseFloat(newTrip.budget)||0,expenses:[]}]);setNewTrip({name:"",country:"",budget:"",currency:"USD",startDate:"",endDate:""});setActiveTrip(id);setScreen("trip");setTab("entries");show("Trip created!")}
+  function delTrip(id){
+    const t=trips.find(x=>x.id===id);const myEmail=(authUser?.email||"").toLowerCase();
+    if(t&&t.isShared){
+      if((t.ownerEmail||"").toLowerCase()===myEmail)deleteSharedTrip(id).catch(()=>{});       // owner removes for everyone
+      else saveSharedTrip({...stripFlag(t),members:(t.members||[]).filter(m=>m!==myEmail)}).catch(()=>{}); // member leaves
+      delete sharedJson.current[id];
+    }
+    setTrips(p=>p.filter(t=>t.id!==id));if(activeTrip===id){setActiveTrip(null);setScreen("myTrips")}
+  }
   function addExpense(){if(!newExp.amount||!trip)return;setTrips(p=>p.map(t=>t.id===activeTrip?{...t,expenses:[...t.expenses,{id:gid(),amount:parseFloat(newExp.amount),category:newExp.category,currency:newExp.currency,note:newExp.note,date:newExp.hasDate?newExp.date:""}]}:t));setNewExp({amount:"",category:"food",currency:trip.currency,note:"",date:new Date().toISOString().slice(0,10),hasDate:true});setSub(null);show("Added!")}
   function updateExp(){if(!editExp)return;setTrips(p=>p.map(t=>t.id===activeTrip?{...t,expenses:t.expenses.map(e=>e.id===editExp.id?{...editExp,amount:parseFloat(editExp.amount),date:editExp.hasDate?editExp.date:""}:e)}:t));setEditExp(null);setSub(null)}
   function delExp(id){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,expenses:t.expenses.filter(e=>e.id!==id)}:t))}
-  function addFriend(){if(!shareEmail.trim()||!trip)return;const u={email:shareEmail.trim(),role:shareRole};setTrips(p=>p.map(t=>t.id===activeTrip?{...t,shared:[...(t.shared||[]),u]}:t));setShareEmail("");show(`Added ${u.email}`)}
-  function removeFriend(email){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,shared:(t.shared||[]).filter(u=>u.email!==email)}:t))}
+  // ── Real trip sharing (per-trip, both members edit) ──
+  function shareTrip(){
+    const email=shareInput.trim().toLowerCase();const myEmail=(authUser?.email||"").toLowerCase();
+    if(!trip)return;
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){show("אימייל לא תקין");return;}
+    if(email===myEmail){show("זה האימייל שלך 🙂");return;}
+    if((trip.members||[]).includes(email)){show("כבר משותף עם האימייל הזה");return;}
+    setTrips(p=>p.map(t=>t.id===activeTrip?{...t,isShared:true,ownerEmail:t.ownerEmail||myEmail,members:Array.from(new Set([...(t.members||[]),myEmail,email]))}:t));
+    setShareInput("");show(`✓ שותף עם ${email}`);
+  }
+  function unshareMember(email){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,members:(t.members||[]).filter(m=>m!==email)}:t));}
+  function stopSharing(){
+    const id=activeTrip;deleteSharedTrip(id).catch(()=>{});delete sharedJson.current[id];
+    setTrips(p=>p.map(t=>t.id===id?{...stripFlag(t),isShared:false,members:[]}:t));show("השיתוף הופסק");
+  }
   function saveEditTrip(){if(!editTripForm)return;setTrips(p=>p.map(t=>t.id===activeTrip?{...t,...editTripForm,budget:parseFloat(editTripForm.budget)||0}:t));setEditTripForm(null);setSub(null);show("Updated!")}
   function getCSV(){
     if(!trip)return"";
@@ -1042,6 +1088,7 @@ export default function App(){
                   <div>
                     <div style={{fontSize:40,lineHeight:1,marginBottom:6}}>{gF(t.country)}</div>
                     <div style={{fontWeight:900,fontSize:20,letterSpacing:"-0.4px",textShadow:"0 2px 8px rgba(0,0,0,.3)"}}>{t.name}</div>
+                    {t.isShared&&<div style={{display:"inline-flex",alignItems:"center",gap:4,marginTop:7,background:"rgba(255,255,255,0.25)",borderRadius:8,padding:"2px 9px",fontSize:11,fontWeight:800,backdropFilter:"blur(4px)"}}><Users size={11}/>משותף</div>}
                   </div>
                   <button onClick={e=>{e.stopPropagation();delTrip(t.id)}} style={{background:"rgba(0,0,0,0.3)",border:"none",borderRadius:10,width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><X size={14} color="#fff"/></button>
                 </div>
@@ -1734,16 +1781,32 @@ export default function App(){
       </div>);
     }
 
-    if(sub==="addFriend"){const fr=trip.shared||[];return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 100px"}}><style>{css}</style>{toastEl}<div style={{maxWidth:480,margin:"0 auto"}}>
-      <button onClick={()=>setSub(null)} style={BK}><ChevronLeft size={18}/>Back</button>
-      <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 24px",display:"flex",alignItems:"center",gap:8}}><UserPlus size={20} style={{color:"var(--accent)"}}/>Add Friend</h2>
-      <div style={{...C,marginBottom:16}}><label style={L}>Email</label><input style={I} type="email" placeholder="friend@email.com" value={shareEmail} onChange={e=>setShareEmail(e.target.value)}/>
-        <div style={{display:"flex",gap:10,marginTop:14}}>{[["viewer","View Only",Eye],["editor","Can Edit",Pencil]].map(([r,l,Icon])=><button key={r} onClick={()=>setShareRole(r)} style={{flex:1,padding:12,borderRadius:14,border:shareRole===r?"2px solid var(--accent)":"1px solid var(--border)",background:shareRole===r?"rgba(0,229,160,.08)":"var(--card)",color:"var(--text)",cursor:"pointer",fontFamily:"Inter",fontSize:13,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><Icon size={16}/>{l}</button>)}</div>
-        <button style={{...B1,marginTop:14}} onClick={addFriend}>Add to Trip</button></div>
-      {fr.length>0&&<div style={C}><div style={{...L,marginBottom:14}}>Shared with</div>{fr.map((u,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 0",borderTop:i>0?"1px solid var(--border)":"none"}}>
-        <div><div style={{fontWeight:600,fontSize:14}}>{u.email}</div><div style={{fontSize:12,color:"var(--text2)",display:"flex",alignItems:"center",gap:4,marginTop:2}}>{u.role==="editor"?<Pencil size={12}/>:<Eye size={12}/>}{u.role==="editor"?"Editor":"Viewer"}</div></div>
-        <button onClick={()=>removeFriend(u.email)} style={{background:"none",border:"none",color:"var(--red)",cursor:"pointer"}}><X size={16}/></button></div>)}</div>}
-    </div><TabBar/></div>);}
+    if(sub==="addFriend"){
+      const myEmail=(authUser?.email||"").toLowerCase();
+      const members=trip.members||[];
+      const ownerEmail=(trip.ownerEmail||myEmail).toLowerCase();
+      const isOwner=ownerEmail===myEmail;
+      return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 100px"}}><style>{css}</style>{toastEl}<div style={{maxWidth:480,margin:"0 auto"}}>
+        <button onClick={()=>setSub(null)} style={BK}><ChevronLeft size={18}/>חזרה</button>
+        <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 6px",display:"flex",alignItems:"center",gap:8}}><Users size={22} style={{color:"var(--accent)"}}/>שיתוף הטיול</h2>
+        <p style={{fontSize:13,color:"var(--text2)",marginBottom:20,lineHeight:1.6}}>הזמן אדם נוסף לפי אימייל. שניכם תראו ותערכו את אותו טיול — הוצאות, תכנון והכול — בסנכרון חי.</p>
+        <div style={{...C,marginBottom:16}}>
+          <label style={L}>הזמן לפי אימייל</label>
+          <div style={{display:"flex",gap:8,marginTop:6}}>
+            <input style={{...I,flex:1,direction:"ltr",textAlign:"left"}} type="email" placeholder="friend@email.com" value={shareInput} onChange={e=>setShareInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")shareTrip();}}/>
+            <button onClick={shareTrip} style={{...B1,width:"auto",padding:"0 22px"}}>שתף</button>
+          </div>
+          <p style={{fontSize:11,color:"var(--text2)",marginTop:10,lineHeight:1.6}}>לאדם צריך להיות חשבון ב-Trip Tracker עם אותו אימייל. אם עדיין אין לו — שיירשם עם האימייל הזה, והטיול יופיע לו אוטומטית.</p>
+        </div>
+        {trip.isShared&&members.length>0&&<div style={{...C,marginBottom:16}}>
+          <div style={{...L,marginBottom:12}}>חברי הטיול ({members.length})</div>
+          {members.map((m,i)=>{const mo=m===ownerEmail;return(<div key={m} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderTop:i>0?"1px solid var(--border)":"none"}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,minWidth:0}}><span style={{fontSize:16}}>{mo?"👑":"👤"}</span><div style={{minWidth:0}}><div style={{fontWeight:600,fontSize:13,direction:"ltr",textAlign:"right",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m}{m===myEmail?" (אני)":""}</div><div style={{fontSize:11,color:"var(--text2)"}}>{mo?"בעלים":"עורך"}</div></div></div>
+            {isOwner&&!mo&&<button onClick={()=>unshareMember(m)} style={{background:"none",border:"none",color:"var(--red)",cursor:"pointer",flexShrink:0}}><X size={16}/></button>}
+          </div>);})}
+        </div>}
+        {trip.isShared&&isOwner&&<button onClick={()=>{stopSharing();setSub(null);}} style={{...B2,color:"var(--red)",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><X size={15}/>הפסק שיתוף (הפוך לפרטי)</button>}
+      </div><TabBar/></div>);}
 
     if(sub==="editTrip"){const f=editTripForm||{name:trip.name,country:trip.country,budget:trip.budget,currency:trip.currency,startDate:trip.startDate,endDate:trip.endDate};if(!editTripForm)setEditTripForm(f);
       return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 100px"}}><style>{css}</style>{toastEl}<div style={{maxWidth:480,margin:"0 auto"}}>
@@ -1884,7 +1947,7 @@ export default function App(){
         <div style={C}><label style={L}>Your Name</label><input style={I} value={userName} onChange={e=>setUserName(e.target.value)}/></div>
         <div style={C}><label style={L}>Default Currency</label><select style={I} value={trip.currency} onChange={e=>setTrips(p=>p.map(t=>t.id===activeTrip?{...t,currency:e.target.value}:t))}>{CURRS.map(c=><option key={c.code} value={c.code}>{c.symbol} {c.name}</option>)}</select></div>
         <div style={C}><div style={{...L,marginBottom:12}}>Trip Info</div>
-          {[["Country",trip.country||"—"],["Dates",`${trip.startDate||"—"} → ${trip.endDate||"—"}`],["Budget",trip.budget?fC(trip.budget,trip.currency):"—"],["Expenses",""+trip.expenses.length],["Shared",`${(trip.shared||[]).length} people`]].map(([k,v],i)=>
+          {[["Country",trip.country||"—"],["Dates",`${trip.startDate||"—"} → ${trip.endDate||"—"}`],["Budget",trip.budget?fC(trip.budget,trip.currency):"—"],["Expenses",""+trip.expenses.length],["Shared",trip.isShared?`${(trip.members||[]).length} members`:"Private"]].map(([k,v],i)=>
             <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderTop:i?"1px solid var(--border)":"none",fontSize:13}}><span style={{color:"var(--text2)"}}>{k}</span><span style={{fontWeight:600}}>{v}</span></div>)}</div>
         <button style={{...B2,color:"var(--red)",display:"flex",alignItems:"center",justifyContent:"center",gap:6}} onClick={()=>{delTrip(trip.id);setScreen("myTrips");setSub(null)}}><Trash2 size={16}/>Delete Trip</button>
       </div></div><TabBar/></div>);}
@@ -1898,7 +1961,7 @@ export default function App(){
           <div style={{position:"relative"}}>
             <button onClick={()=>setMenuOpen(!menuOpen)} style={{background:"none",border:"none",cursor:"pointer",padding:8}}><MoreVertical size={20} color="var(--text2)"/></button>
             {menuOpen&&<><div onClick={()=>setMenuOpen(false)} style={{position:"fixed",top:0,left:0,right:0,bottom:0,zIndex:60}}/><div style={{position:"absolute",top:"100%",right:0,width:230,background:"rgba(20,24,32,0.98)",border:"1px solid var(--border)",borderRadius:18,boxShadow:"0 12px 40px rgba(0,0,0,.6)",zIndex:70,overflow:"hidden",backdropFilter:"blur(30px)",animation:"fadeUp .15s"}}>
-              {[{Icon:UserPlus,l:"Add Friend",a:()=>{setSub("addFriend");setMenuOpen(false)}},{Icon:Pencil,l:"Edit Trip",a:()=>{setEditTripForm({name:trip.name,country:trip.country,budget:trip.budget,currency:trip.currency,startDate:trip.startDate,endDate:trip.endDate});setSub("editTrip");setMenuOpen(false)}},{Icon:FileText,l:"Documents",a:()=>{setTab("files");setSub(null);setMenuOpen(false)}},{Icon:Download,l:"Export CSV",a:()=>{setSub("exportView");setMenuOpen(false)}},{Icon:Share2,l:"Share",a:()=>{setSub("shareView");setMenuOpen(false)}},{Icon:Settings,l:"Settings",a:()=>{setSub("settings");setMenuOpen(false)}}].map(({Icon,l,a},i)=>
+              {[{Icon:Users,l:"שתף טיול",a:()=>{setSub("addFriend");setMenuOpen(false)}},{Icon:Pencil,l:"Edit Trip",a:()=>{setEditTripForm({name:trip.name,country:trip.country,budget:trip.budget,currency:trip.currency,startDate:trip.startDate,endDate:trip.endDate});setSub("editTrip");setMenuOpen(false)}},{Icon:FileText,l:"Documents",a:()=>{setTab("files");setSub(null);setMenuOpen(false)}},{Icon:Download,l:"Export CSV",a:()=>{setSub("exportView");setMenuOpen(false)}},{Icon:Share2,l:"Share",a:()=>{setSub("shareView");setMenuOpen(false)}},{Icon:Settings,l:"Settings",a:()=>{setSub("settings");setMenuOpen(false)}}].map(({Icon,l,a},i)=>
                 <button key={i} onClick={a} style={{width:"100%",padding:"14px 18px",background:"none",border:"none",borderTop:i?"1px solid var(--border)":"none",color:"#fff",cursor:"pointer",fontFamily:"Heebo,system-ui",fontSize:14,fontWeight:500,textAlign:"left",display:"flex",alignItems:"center",gap:12}}><Icon size={18} color="rgba(255,255,255,0.55)"/>{l}</button>)}
             </div></>}</div></div>
 

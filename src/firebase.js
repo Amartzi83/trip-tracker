@@ -24,6 +24,9 @@ import {
   setDoc,
   deleteDoc,
   onSnapshot,
+  collection,
+  query,
+  where,
 } from "firebase/firestore";
 import { firebaseConfig, firebaseReady } from "./firebaseConfig";
 
@@ -130,6 +133,30 @@ export async function loadUserFile(uid, fileId) {
 export async function deleteUserFile(uid, fileId) {
   if (!db) return;
   await deleteDoc(fileRef(uid, fileId));
+}
+
+// ── Shared trips ──
+// A shared trip lives at  sharedTrips/{tripId}  with a `members` array of
+// lowercased emails. Every member can read and write it (security rules
+// enforce membership). Both collaborators see live edits via the snapshot.
+export function watchSharedTrips(email, cb) {
+  if (!db || !email) return () => {};
+  const q = query(collection(db, "sharedTrips"), where("members", "array-contains", email.toLowerCase()));
+  return onSnapshot(
+    q,
+    (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    () => {}
+  );
+}
+
+export async function saveSharedTrip(trip) {
+  if (!db) return;
+  await setDoc(doc(db, "sharedTrips", trip.id), { ...trip, updatedAt: Date.now() });
+}
+
+export async function deleteSharedTrip(tripId) {
+  if (!db) return;
+  await deleteDoc(doc(db, "sharedTrips", tripId));
 }
 
 // Friendly Hebrew messages for common Firebase auth errors.
