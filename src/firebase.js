@@ -27,6 +27,7 @@ import {
   collection,
   query,
   where,
+  getDocs,
 } from "firebase/firestore";
 import { firebaseConfig, firebaseReady } from "./firebaseConfig";
 
@@ -157,6 +158,40 @@ export async function saveSharedTrip(trip) {
 export async function deleteSharedTrip(tripId) {
   if (!db) return;
   await deleteDoc(doc(db, "sharedTrips", tripId));
+}
+
+// ── Automatic cloud backups ──
+// Daily snapshots of the user's trips at  users/{uid}/backups/{YYYY-MM-DD}.
+// Each doc: { trips, userName, createdAt }. Private (same rules as the user doc).
+function backupCol(uid) { return collection(db, "users", uid, "backups"); }
+
+// Create today's snapshot only if it doesn't exist yet (keeps the first state of the day),
+// then prune to the newest ~20 days. Returns true if a snapshot was written.
+export async function ensureDailyBackup(uid, id, data) {
+  if (!db) return false;
+  const ref = doc(db, "users", uid, "backups", id);
+  const snap = await getDoc(ref);
+  if (snap.exists()) return false;
+  await setDoc(ref, { ...data, createdAt: Date.now() });
+  try {
+    const ids = (await getDocs(backupCol(uid))).docs.map((d) => d.id).sort(); // dates → oldest first
+    const extra = ids.length - 20;
+    for (let i = 0; i < extra; i++) await deleteDoc(doc(db, "users", uid, "backups", ids[i]));
+  } catch {}
+  return true;
+}
+
+export async function listBackups(uid) {
+  if (!db) return [];
+  const snap = await getDocs(backupCol(uid));
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+}
+
+export async function deleteBackup(uid, id) {
+  if (!db) return;
+  await deleteDoc(doc(db, "users", uid, "backups", id));
 }
 
 // Friendly Hebrew messages for common Firebase auth errors.

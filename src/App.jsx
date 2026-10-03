@@ -1,6 +1,6 @@
 // v2.1
 import { useState, useEffect, useMemo, useRef } from "react";
-import { firebaseReady, onAuth, signUp, signIn, logOut, resetPassword, resendVerification, reloadUser, loadUserData, watchUserData, saveUserData, saveUserFile, loadUserFile, deleteUserFile, watchSharedTrips, saveSharedTrip, deleteSharedTrip, authErrorText } from "./firebase";
+import { firebaseReady, onAuth, signUp, signIn, logOut, resetPassword, resendVerification, reloadUser, loadUserData, watchUserData, saveUserData, saveUserFile, loadUserFile, deleteUserFile, watchSharedTrips, saveSharedTrip, deleteSharedTrip, ensureDailyBackup, listBackups, authErrorText } from "./firebase";
 import { extractItinerary } from "./gemini";
 import { Plane, Plus, ChevronLeft, MoreVertical, ArrowLeftRight, Globe, Receipt, TrendingUp, Coffee, UtensilsCrossed, ShoppingBag, Hotel, Bus, Wine, HeartPulse, Smartphone, Gift, Shield, Shirt, MapPin, Ticket, Camera, Music, Landmark, Palmtree, Eye, Pencil, Download, Share2, Settings, Trash2, UserPlus, Volume2, X, Clock, CreditCard, Wallet, Users, Copy, ExternalLink, ChevronRight, Compass, Utensils, Beer, Baby, ShoppingCart, TreePine, Waves, Gem, Map, Route, DollarSign, Navigation, Globe2, Star, Sun, FileText, Upload, Cloud, CalendarDays, Link2, Wind } from "lucide-react";
 
@@ -264,6 +264,9 @@ export default function App(){
   const personalJson=useRef("");                     // last personal {trips,userName} persisted/loaded (echo guard)
   const sharedJson=useRef({});                       // tripId -> last shared-trip JSON persisted/loaded (echo guard)
   const cloudReady=useRef(false);                    // true after the first cloud snapshot — blocks saving stale local data over the cloud
+  const backupDoneRef=useRef("");                    // date of the daily snapshot already attempted this session
+  const[backupsList,setBackupsList]=useState([]);    // cloud auto-backup snapshots (for the restore screen)
+  const[backupsLoading,setBackupsLoading]=useState(false);
   const[shareInput,setShareInput]=useState("");      // email being invited to a trip
   const[shareBusy,setShareBusy]=useState(false);
   const[authReset,setAuthReset]=useState(false);     // password-reset busy flag
@@ -427,7 +430,7 @@ export default function App(){
     if(saveTimer.current)clearTimeout(saveTimer.current);
     saveTimer.current=setTimeout(()=>saveToGist(trips,userName,githubToken,gistId),2000);
   },[userName]);
-  useEffect(()=>{if(screen==="syncSettings"){setTokenDraft(githubToken);setGistDraft(gistId);}},[screen]);
+  useEffect(()=>{if(screen==="syncSettings"){setTokenDraft(githubToken);setGistDraft(gistId);loadBackupsList();}},[screen]);
 
   // ── Firebase: track login state ──
   useEffect(()=>{
@@ -452,6 +455,12 @@ export default function App(){
         if(typeof data.userName==="string")setUserName(data.userName);
         if(typeof data.geminiKey==="string"&&data.geminiKey)setGeminiKey(data.geminiKey);
         setCloudStatus("saved");
+        // daily cloud snapshot (safety net) — once per day, from the loaded cloud data
+        const today=new Date().toISOString().slice(0,10);
+        if(data.trips.length&&backupDoneRef.current!==today){
+          backupDoneRef.current=today;
+          ensureDailyBackup(authUser.uid,today,{trips:data.trips,userName:(typeof data.userName==="string"?data.userName:userName)}).catch(()=>{});
+        }
       }else if(!seeded){
         seeded=true;                            // no cloud doc → upload this device's personal data
         const personal=trips.filter(t=>!t.isShared).map(stripFlag);
@@ -655,14 +664,28 @@ export default function App(){
         const d=JSON.parse(reader.result);
         const arr=Array.isArray(d)?d:d.trips;
         if(!Array.isArray(arr)){show("קובץ גיבוי לא תקין");return;}
-        if(!window.confirm(`לשחזר ${arr.length} טיולים מהגיבוי? הפעולה תחליף את הנתונים הנוכחיים במכשיר.`))return;
-        setTrips(arr);
+        if(!window.confirm(`לשחזר ${arr.length} טיולים מהגיבוי? הם יתווספו/יתעדכנו — טיולים קיימים לא יימחקו.`))return;
+        setTrips(cur=>{const m={};cur.forEach(t=>{m[t.id]=t});arr.forEach(t=>{m[t.id]={...t}});return Object.values(m);}); // merge, never wipe
         if(d&&d.userName)setUserName(d.userName);
         if(d&&Array.isArray(d.extraCurrs))setExtraCurrs(d.extraCurrs);
         show("↺ שוחזר מקובץ הגיבוי!");
       }catch{show("שגיאה בקריאת הקובץ");}
     };
     reader.readAsText(file);
+  }
+  // ── Cloud auto-backups (restore screen) ──
+  async function loadBackupsList(){
+    if(!firebaseReady||!authUser){setBackupsList([]);return;}
+    setBackupsLoading(true);
+    try{setBackupsList(await listBackups(authUser.uid));}catch{}
+    setBackupsLoading(false);
+  }
+  // Restore = ADD back any trips from the snapshot that are missing now (never deletes current trips).
+  function restoreFromBackup(bk){
+    if(!Array.isArray(bk.trips)){show("גיבוי לא תקין");return;}
+    let added=0;
+    setTrips(cur=>{const m={};cur.forEach(t=>{m[t.id]=t});bk.trips.forEach(t=>{if(!m[t.id]){m[t.id]={...t};added++;}});return Object.values(m);});
+    show(added?`↺ שוחזרו ${added} טיולים מהגיבוי`:"כל הטיולים מהגיבוי כבר קיימים");
   }
 
 
@@ -1815,6 +1838,27 @@ export default function App(){
             <input type="file" accept="application/json,.json" style={{display:"none"}} onChange={e=>{const f=e.target.files&&e.target.files[0];if(f)importBackup(f);e.target.value="";}}/>
           </label>
         </div>
+        {firebaseReady&&authUser&&<div dir="rtl" style={{...C,marginBottom:16}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+            <div style={L}>☁️ גיבויים אוטומטיים בענן</div>
+            <button onClick={loadBackupsList} style={{background:"none",border:"1px solid var(--border)",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:11,color:"var(--text2)",fontFamily:"Heebo,system-ui"}}>רענן</button>
+          </div>
+          <p style={{fontSize:12,color:"var(--text2)",marginBottom:14,lineHeight:1.6}}>צילום מצב יומי אוטומטי של הטיולים שלך. "שחזר" מוסיף טיולים חסרים מהגיבוי — לא מוחק כלום.</p>
+          {backupsLoading
+            ?<div style={{textAlign:"center",padding:"16px",color:"var(--text2)",fontSize:13}}>טוען…</div>
+            :backupsList.length===0
+              ?<div style={{textAlign:"center",padding:"16px",color:"var(--text2)",fontSize:13}}>עדיין אין גיבויים — נוצרים אוטומטית בכל כניסה יומית</div>
+              :<div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:260,overflowY:"auto"}}>
+                 {backupsList.map(bk=>{const n=(bk.trips||[]).length;const names=(bk.trips||[]).map(t=>t.name).filter(Boolean).slice(0,3).join(", ");return(
+                   <div key={bk.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:12,border:"1px solid var(--border)",background:"var(--card)"}}>
+                     <div style={{flex:1,minWidth:0}}>
+                       <div style={{fontSize:13,fontWeight:700}}>{bk.id}</div>
+                       <div style={{fontSize:11,color:"var(--text2)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{n} טיולים{names?` · ${names}`:""}</div>
+                     </div>
+                     <button onClick={()=>{if(window.confirm(`לשחזר טיולים חסרים מהגיבוי של ${bk.id}?`))restoreFromBackup(bk);}} style={{...B2,width:"auto",padding:"7px 14px",fontSize:12,flexShrink:0}}>שחזר</button>
+                   </div>);})}
+               </div>}
+        </div>}
         <div style={{...C,marginBottom:16}}>
           <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",borderRadius:14,background:isConn?"rgba(0,229,160,.08)":"rgba(255,255,255,.03)",border:`1px solid ${isConn?"rgba(0,229,160,.3)":"var(--border)"}`,marginBottom:20}}>
             <div style={{width:9,height:9,borderRadius:"50%",background:isConn?"var(--accent)":"var(--text2)",flexShrink:0,boxShadow:isConn?"0 0 8px var(--accent)":"none"}}/>
