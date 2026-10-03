@@ -194,6 +194,55 @@ const PACK_CATS=[
 ];
 const PACKING_DEFAULTS=[{cat:"docs",text:"דרכון"},{cat:"docs",text:"ויזה (אם נדרשת)"},{cat:"docs",text:"כרטיסי טיסה (דיגיטל/הדפסה)"},{cat:"docs",text:"ביטוח נסיעות"},{cat:"docs",text:"כרטיסי אשראי (2 לפחות)"},{cat:"docs",text:"מזומן במטבע מקומי"},{cat:"docs",text:"רישיון נהיגה"},{cat:"docs",text:"צילום דרכון (גיבוי)"},{cat:"clothing",text:"חולצות (5-7)"},{cat:"clothing",text:"מכנסיים / שורטס"},{cat:"clothing",text:"תחתונים וגרביים"},{cat:"clothing",text:"נעליים נוחות"},{cat:"clothing",text:"כפכפים"},{cat:"clothing",text:"בגד ים"},{cat:"clothing",text:"מעיל / סוודר"},{cat:"clothing",text:"כובע שמש"},{cat:"clothing",text:"פיג'מה"},{cat:"health",text:"תרופות אישיות"},{cat:"health",text:"משכך כאבים (אדוויל / אקמול)"},{cat:"health",text:"תרופות לשלשול"},{cat:"health",text:"קרם הגנה SPF 50+"},{cat:"health",text:"תרסיס נגד יתושים"},{cat:"health",text:"פלסטרים + חבישות"},{cat:"health",text:"תרופות לבחילה (טיסה/ים)"},{cat:"health",text:"אנטיביוטיקה (לפי צורך)"},{cat:"electronics",text:"טלפון + מטען"},{cat:"electronics",text:"פאוור בנק"},{cat:"electronics",text:"אוזניות"},{cat:"electronics",text:"אדפטור / ממיר שקעים"},{cat:"electronics",text:"כבל USB-C"},{cat:"electronics",text:"מצלמה + מטען"},{cat:"electronics",text:"כרטיס זיכרון (SD)"},{cat:"toiletries",text:"מברשת שיניים + משחה"},{cat:"toiletries",text:"שמפו + מרכך"},{cat:"toiletries",text:"סבון גוף"},{cat:"toiletries",text:"מגלח"},{cat:"toiletries",text:"דאודורנט"},{cat:"toiletries",text:"קרם לחות"},{cat:"toiletries",text:"מגבת מיקרופייבר"},{cat:"general",text:"תיק גב קטן (לטיולים יומיים)"},{cat:"general",text:"בקבוק מים (ניתן למילוי)"},{cat:"general",text:"מנעול למזוודה"},{cat:"general",text:"שקיות זיפלוק"},{cat:"general",text:"ספר / קינדל"},{cat:"general",text:"אטמי אוזניים"},{cat:"general",text:"מסכת שינה"},{cat:"general",text:"כרית צוואר (לטיסה)"},{cat:"general",text:"מטריה קטנה"}];
 
+/* ───────── Itinerary (TripIt-style schedule) ───────── */
+const SEG_TYPES=[
+  {id:"flight",   l:"טיסה",    Icon:Plane,      color:"#1E5BD6"},
+  {id:"hotel",    l:"מלון",    Icon:Hotel,      color:"#8854d0"},
+  {id:"car",      l:"רכב",     Icon:Navigation, color:"#00A676"},
+  {id:"transport",l:"תחבורה",  Icon:Bus,        color:"#22A6B3"},
+  {id:"activity", l:"פעילות",  Icon:Ticket,     color:"#f0932b"},
+  {id:"other",    l:"אחר",     Icon:MapPin,     color:"#636e72"},
+];
+const segType=t=>SEG_TYPES.find(x=>x.id===t)||SEG_TYPES[SEG_TYPES.length-1];
+function segDT(d,t){ if(!d)return null; const dt=new Date(`${d}T${t&&/^\d{2}:\d{2}$/.test(t)?t:"00:00"}:00`); return isNaN(dt)?null:dt; }
+const segStart=s=>segDT(s.startDate,s.startTime);
+const segEnd=s=>segDT(s.endDate||s.startDate,s.endTime||s.startTime);
+function segTitle(s){
+  if(s.title&&s.title.trim())return s.title.trim();
+  if(s.type==="flight")return `${s.from||"?"} → ${s.to||"?"}`;
+  if(s.type==="car")return `${s.provider||"רכב"} · ${s.from||"?"}`;
+  return s.provider||s.location||segType(s.type).l;
+}
+// Detect schedule problems: overlaps, short connections, airport mismatches, date errors, missing info.
+function itinWarnings(list){
+  const segs=[...(list||[])].filter(s=>s.startDate).sort((a,b)=>(segStart(a)-segStart(b)));
+  const w=[];
+  segs.forEach(s=>{
+    const st=segStart(s),en=segEnd(s);
+    if(st&&en&&en<st)w.push({level:"error",text:`"${segTitle(s)}" — זמן הסיום לפני ההתחלה`});
+    if(s.type==="flight"&&!s.startTime)w.push({level:"warn",text:`טיסה "${segTitle(s)}" — חסרה שעת המראה`});
+    if(!s.confirmation&&["flight","hotel","car"].includes(s.type))w.push({level:"info",text:`"${segTitle(s)}" — חסר מספר אישור`});
+  });
+  const flights=segs.filter(s=>s.type==="flight");
+  for(let i=0;i<flights.length-1;i++){
+    const a=flights[i],b=flights[i+1];const arr=segEnd(a),dep=segStart(b);
+    if(!arr||!dep)continue;
+    const mins=(dep-arr)/60000;
+    if(mins<0){w.push({level:"error",text:`התנגשות: "${segTitle(b)}" ממריאה לפני נחיתת "${segTitle(a)}"`});continue;}
+    const diffAp=a.to&&b.from&&a.to.trim().toUpperCase()!==b.from.trim().toUpperCase();
+    const thr=diffAp?180:50;
+    if(mins<thr)w.push({level:"warn",text:`קונקשן קצר (${Math.round(mins)} דק') בין "${segTitle(a)}" ל"${segTitle(b)}"${diffAp?" — וגם מעבר שדה תעופה":""}`});
+    if(diffAp)w.push({level:"warn",text:`אי-התאמה: נוחת ב-${a.to} אך הטיסה הבאה ממריאה מ-${b.from}`});
+  }
+  for(let i=0;i<segs.length;i++)for(let j=i+1;j<segs.length;j++){
+    const a=segs[i],b=segs[j];
+    if(a.type!==b.type||!["flight","car"].includes(a.type))continue;
+    const as=segStart(a),ae=segEnd(a),bs=segStart(b),be=segEnd(b);
+    if(as&&ae&&bs&&be&&as<be&&bs<ae)w.push({level:"warn",text:`חפיפת זמנים בין "${segTitle(a)}" ל"${segTitle(b)}"`});
+  }
+  return w;
+}
+
 /* ═══════ APP ═══════ */
 export default function App(){
   const[trips,setTrips]=useState(()=>{try{const s=localStorage.getItem('tt_trips');if(s!==null){const p=JSON.parse(s);if(Array.isArray(p))return p;}}catch{}return[{id:"d1",name:"Athens & Islands",country:"Greece",budget:2000,currency:"USD",startDate:"2026-04-01",endDate:"2026-04-14",shared:[],expenses:[{id:"e1",amount:320,category:"flights",currency:"USD",note:"Round-trip",date:""},{id:"e2",amount:55,category:"insurance",currency:"USD",note:"Travel insurance",date:""},{id:"e3",amount:45,category:"food",currency:"EUR",note:"Dinner in Athens",date:"2026-04-02"},{id:"e4",amount:120,category:"accommodation",currency:"EUR",note:"Airbnb",date:"2026-04-02"},{id:"e5",amount:25,category:"tours",currency:"EUR",note:"Acropolis",date:"2026-04-03"},{id:"e6",amount:4.5,category:"coffee",currency:"EUR",note:"Cappuccino",date:"2026-04-03"},{id:"e7",amount:35,category:"groceries",currency:"EUR",note:"Super market",date:"2026-04-04"},{id:"e8",amount:60,category:"gifts",currency:"EUR",note:"Souvenirs",date:"2026-04-04"}]}];});
@@ -265,6 +314,7 @@ export default function App(){
   const[packFilter,setPackFilter]=useState("all");
   const[planTab,setPlanTab]=useState("visits"); // "visits" | "shopping" — trip planning lists
   const[planInput,setPlanInput]=useState("");
+  const[editSeg,setEditSeg]=useState(null);     // itinerary segment being added/edited (form object)
   const[trFrom,setTrFrom]=useState("en");
   const[trTo,setTrTo]=useState("th");
   const[trText,setTrText]=useState("");
@@ -644,6 +694,10 @@ export default function App(){
     setTrips(p=>p.map(t=>t.id===id?{...stripFlag(t),isShared:false,members:[]}:t));show("השיתוף הופסק");
   }
   function saveEditTrip(){if(!editTripForm)return;setTrips(p=>p.map(t=>t.id===activeTrip?{...t,...editTripForm,budget:parseFloat(editTripForm.budget)||0}:t));setEditTripForm(null);setSub(null);show("Updated!")}
+  // ── Itinerary segments ──
+  function newSeg(type){setEditSeg({id:gid(),type,title:"",from:"",to:"",provider:"",confirmation:"",seat:"",location:"",note:"",startDate:trip?.startDate||"",startTime:"",endDate:"",endTime:""});setSub("editSeg");}
+  function saveSeg(){if(!editSeg)return;const s={...editSeg};setTrips(p=>p.map(t=>t.id===activeTrip?{...t,itinerary:(t.itinerary||[]).some(x=>x.id===s.id)?(t.itinerary||[]).map(x=>x.id===s.id?s:x):[...(t.itinerary||[]),s]}:t));setEditSeg(null);setSub(null);show("נשמר ✓");}
+  function delSeg(id){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,itinerary:(t.itinerary||[]).filter(x=>x.id!==id)}:t));setEditSeg(null);setSub(null);show("נמחק");}
   function getCSV(){
     if(!trip)return"";
     const q=c=>`"${String(c==null?"":c).replace(/"/g,'""')}"`;
@@ -727,7 +781,7 @@ export default function App(){
 
   /* ═══════ TAB BAR ═══════ */
   function TabBar(){
-    const tabs=[{id:"entries",Icon:Receipt,l:"הוצאות"},{id:"stats",Icon:TrendingUp,l:"סטטיסטיקה"},{id:"xe",Icon:ArrowLeftRight,l:"המרה"},{id:"plan",Icon:MapPin,l:"תכנון"},{id:"files",Icon:FileText,l:"קבצים"}];
+    const tabs=[{id:"entries",Icon:Receipt,l:"הוצאות"},{id:"stats",Icon:TrendingUp,l:"סטטיסטיקה"},{id:"itin",Icon:Route,l:"מסלול"},{id:"plan",Icon:MapPin,l:"תכנון"},{id:"files",Icon:FileText,l:"קבצים"}];
     return(<div style={{position:"fixed",bottom:0,left:0,right:0,background:"#FFFFFF",borderTop:"1px solid var(--border)",display:"flex",zIndex:50,paddingBottom:"env(safe-area-inset-bottom)",boxShadow:"0 -2px 12px rgba(40,60,140,0.05)"}}>
       {tabs.map(({id,Icon,l})=><button key={id} onClick={()=>{setTab(id);setSub(null)}} style={{flex:1,padding:"10px 0 8px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,color:tab===id?"#1E5BD6":"#A8AEC0",transition:"all .2s"}}>
         <Icon size={20} strokeWidth={tab===id?2.5:1.5}/><span style={{fontSize:9,fontWeight:tab===id?800:500,letterSpacing:"0.3px"}}>{l}</span>
@@ -1811,6 +1865,48 @@ export default function App(){
         {trip.isShared&&isOwner&&<button onClick={()=>{stopSharing();setSub(null);}} style={{...B2,color:"var(--red)",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><X size={15}/>הפסק שיתוף (הפוך לפרטי)</button>}
       </div><TabBar/></div>);}
 
+    /* ══ ITINERARY SEGMENT FORM ══ */
+    if(sub==="editSeg"&&editSeg){
+      const s=editSeg;const st=segType(s.type);const SI=st.Icon;
+      const set=(k,v)=>setEditSeg(p=>({...p,[k]:v}));
+      const isFlight=s.type==="flight",isHotel=s.type==="hotel",isCar=s.type==="car";
+      const providerL=isFlight?"חברת תעופה ומס' טיסה":isHotel?"שם המלון":isCar?"חברת השכרה":"ספק / שם";
+      const startL=isFlight?"המראה":isHotel?"צ'ק-אין":isCar?"איסוף":"התחלה";
+      const endL=isFlight?"נחיתה":isHotel?"צ'ק-אאוט":isCar?"החזרה":"סיום";
+      const fromL=isFlight?"יוצא (שדה תעופה)":"מיקום איסוף";
+      const toL=isFlight?"נוחת (שדה תעופה)":"מיקום החזרה";
+      const existing=(trip.itinerary||[]).some(x=>x.id===s.id);
+      return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 100px"}}><style>{css}</style>{toastEl}<div style={{maxWidth:480,margin:"0 auto"}}>
+        <button onClick={()=>{setSub(null);setEditSeg(null);}} style={BK}><ChevronLeft size={18}/>חזרה</button>
+        <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 18px",display:"flex",alignItems:"center",gap:8}}><SI size={22} style={{color:st.color}}/>{existing?"עריכת":"הוספת"} {st.l}</h2>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:18}}>
+          {SEG_TYPES.map(t=>{const Ic=t.Icon;return(<button key={t.id} onClick={()=>set("type",t.id)} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 11px",borderRadius:11,border:s.type===t.id?`2px solid ${t.color}`:"1px solid var(--border)",background:s.type===t.id?t.color+"15":"var(--card)",color:s.type===t.id?t.color:"var(--text2)",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"Heebo,system-ui"}}><Ic size={14}/>{t.l}</button>);})}
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:14}}>
+          <div><label style={L}>{providerL}</label><input style={I} value={s.provider||""} onChange={e=>set("provider",e.target.value)} placeholder={isFlight?"Delta · DL2648":isHotel?"Central Park Hotel":""}/></div>
+          {(isFlight||isCar)&&<div style={{display:"flex",gap:10}}>
+            <div style={{flex:1}}><label style={L}>{fromL}</label><input style={{...I,direction:"ltr",textAlign:"left"}} value={s.from||""} onChange={e=>set("from",e.target.value)} placeholder={isFlight?"SFO":""}/></div>
+            <div style={{flex:1}}><label style={L}>{toL}</label><input style={{...I,direction:"ltr",textAlign:"left"}} value={s.to||""} onChange={e=>set("to",e.target.value)} placeholder={isFlight?"JFK":""}/></div>
+          </div>}
+          {!(isFlight||isCar)&&<div><label style={L}>כתובת / מיקום</label><input style={I} value={s.location||""} onChange={e=>set("location",e.target.value)}/></div>}
+          <div style={{display:"flex",gap:10}}>
+            <div style={{flex:1.3}}><label style={L}>{startL} · תאריך</label><input style={I} type="date" value={s.startDate||""} onChange={e=>set("startDate",e.target.value)}/></div>
+            <div style={{flex:1}}><label style={L}>שעה</label><input style={I} type="time" value={s.startTime||""} onChange={e=>set("startTime",e.target.value)}/></div>
+          </div>
+          <div style={{display:"flex",gap:10}}>
+            <div style={{flex:1.3}}><label style={L}>{endL} · תאריך</label><input style={I} type="date" value={s.endDate||""} onChange={e=>set("endDate",e.target.value)}/></div>
+            <div style={{flex:1}}><label style={L}>שעה</label><input style={I} type="time" value={s.endTime||""} onChange={e=>set("endTime",e.target.value)}/></div>
+          </div>
+          {["flight","hotel","car"].includes(s.type)&&<div><label style={L}>מספר אישור</label><input style={{...I,direction:"ltr",textAlign:"left"}} value={s.confirmation||""} onChange={e=>set("confirmation",e.target.value)}/></div>}
+          {isFlight&&<div><label style={L}>מושב</label><input style={{...I,direction:"ltr",textAlign:"left"}} value={s.seat||""} onChange={e=>set("seat",e.target.value)}/></div>}
+          <div><label style={L}>כותרת (אופציונלי)</label><input style={I} value={s.title||""} onChange={e=>set("title",e.target.value)} placeholder={segTitle(s)}/></div>
+          <div><label style={L}>הערה</label><input style={I} value={s.note||""} onChange={e=>set("note",e.target.value)}/></div>
+          <button style={B1} onClick={saveSeg}>שמור</button>
+          {existing&&<button style={{...B2,color:"var(--red)",display:"flex",alignItems:"center",justifyContent:"center",gap:6}} onClick={()=>delSeg(s.id)}><Trash2 size={16}/>מחק פריט</button>}
+        </div>
+      </div></div>);
+    }
+
     if(sub==="editTrip"){const f=editTripForm||{name:trip.name,country:trip.country,budget:trip.budget,currency:trip.currency,startDate:trip.startDate,endDate:trip.endDate};if(!editTripForm)setEditTripForm(f);
       return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 100px"}}><style>{css}</style>{toastEl}<div style={{maxWidth:480,margin:"0 auto"}}>
         <button onClick={()=>{setSub(null);setEditTripForm(null)}} style={BK}><ChevronLeft size={18}/>Back</button>
@@ -2018,28 +2114,76 @@ export default function App(){
     }
 
     /* ═══ XE ═══ */
-    if(tab==="xe"){
-      const res=cv(parseFloat(convAmt)||0,convFrom,convTo);const rate=cv(1,convFrom,convTo);
+    if(tab==="itin"){
+      const all=trip.itinerary||[];
+      const dated=all.filter(s=>s.startDate).sort((a,b)=>segStart(a)-segStart(b));
+      const undated=all.filter(s=>!s.startDate);
+      const warns=itinWarnings(all);
+      const errCount=warns.filter(w=>w.level==="error").length;
+      const byDay={};dated.forEach(s=>{(byDay[s.startDate]=byDay[s.startDate]||[]).push(s);});
+      const days=Object.keys(byDay).sort();
+      const fmtDay=d=>{try{return new Date(d+"T00:00:00").toLocaleDateString("he-IL",{weekday:"long",day:"numeric",month:"long"});}catch{return d;}};
+      const wc=l=>l==="error"?"#E63946":l==="warn"?"#C77700":"#1E5BD6";
+      const wbg=l=>l==="error"?"rgba(230,57,70,.08)":l==="warn"?"rgba(229,142,38,.12)":"rgba(30,91,214,.07)";
+      const segCard=s=>{const st=segType(s.type);const Ic=st.Icon;return(
+        <div key={s.id} onClick={()=>{setEditSeg({...s});setSub("editSeg");}} style={{...C,flex:1,padding:"12px 14px",marginBottom:8,cursor:"pointer"}}>
+          <div style={{fontWeight:800,fontSize:14,marginBottom:2}}>{segTitle(s)}</div>
+          {s.provider&&<div style={{fontSize:12,color:"var(--text2)"}}>{s.provider}</div>}
+          {s.confirmation&&<div style={{fontSize:11,color:"var(--text2)",marginTop:3}}>אישור: <b style={{color:"var(--text)"}}>{s.confirmation}</b></div>}
+          {s.seat&&<div style={{fontSize:11,color:"var(--text2)"}}>מושב: {s.seat}</div>}
+          {(s.endDate&&s.endDate!==s.startDate)&&<div style={{fontSize:11,color:"var(--text2)",marginTop:3}}>עד {s.endDate}{s.endTime?` · ${s.endTime}`:""}</div>}
+          {s.location&&<div style={{fontSize:11,color:"var(--text2)",marginTop:3,display:"flex",alignItems:"center",gap:3}}><MapPin size={10}/>{s.location}</div>}
+          {s.note&&<div style={{fontSize:11,color:"var(--text2)",marginTop:3,fontStyle:"italic"}}>{s.note}</div>}
+        </div>);};
       return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"16px 16px 100px"}}><style>{css}</style>{toastEl}<div style={{maxWidth:480,margin:"0 auto"}}>
-        <h2 style={{fontSize:22,fontWeight:800,marginBottom:22,display:"flex",alignItems:"center",gap:8}}><ArrowLeftRight size={22} style={{color:"var(--accent)"}}/>Exchange</h2>
-        <div style={{...C,marginBottom:16}}>
-          <input style={{...I,fontSize:30,fontWeight:800,textAlign:"center",marginBottom:16,background:"transparent"}} type="number" step="0.01" value={convAmt} onChange={e=>setConvAmt(e.target.value)}/>
-          <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:16}}>
-            <div style={{flex:1}}><select style={I} value={convFrom} onChange={e=>setConvFrom(e.target.value)}>{CURRS.map(c=><option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}</select></div>
-            <button onClick={()=>{setConvFrom(convTo);setConvTo(convFrom)}} style={{width:40,height:40,borderRadius:14,border:"1px solid var(--border)",background:"var(--card)",color:"var(--accent)",fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><ArrowLeftRight size={18}/></button>
-            <div style={{flex:1}}><select style={I} value={convTo} onChange={e=>setConvTo(e.target.value)}>{CURRS.map(c=><option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}</select></div>
+        <h2 style={{fontSize:22,fontWeight:800,marginBottom:16,display:"flex",alignItems:"center",gap:8}}><Route size={22} style={{color:"var(--accent)"}}/>מסלול הטיול</h2>
+        {/* Add buttons */}
+        <div style={{...C,marginBottom:16,padding:"14px 16px"}}>
+          <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",letterSpacing:"1px",marginBottom:10}}>הוסף למסלול</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+            {SEG_TYPES.map(st=>{const Ic=st.Icon;return(<button key={st.id} onClick={()=>newSeg(st.id)} style={{display:"flex",alignItems:"center",gap:6,padding:"8px 12px",borderRadius:12,border:`1.5px solid ${st.color}45`,background:st.color+"12",color:st.color,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"Heebo,system-ui"}}><Ic size={15}/>{st.l}</button>);})}
           </div>
-          <div style={{background:"var(--bg)",borderRadius:16,padding:20,textAlign:"center",border:"1px solid var(--border)"}}>
-            <div style={{fontSize:34,fontWeight:800,color:"var(--accent)",letterSpacing:"-1px"}}>{fC(res,convTo)}</div>
-            <div style={{fontSize:12,color:"var(--text2)",marginTop:6}}>1 {convFrom} = {rate.toFixed(4)} {convTo}</div>
-          </div>
-          {ratesTime&&<div style={{fontSize:11,color:"var(--accent)",textAlign:"center",marginTop:10,fontWeight:600}}>✓ Live · {ratesTime}</div>}
         </div>
-        <div style={C}><div style={{...L,marginBottom:12}}>Quick Rates</div>
-          {CURRS.filter(c=>c.code!==convFrom).slice(0,8).map(c=>{const r=cv(1,convFrom,c.code);return(
-            <div key={c.code} onClick={()=>setConvTo(c.code)} style={{display:"flex",justifyContent:"space-between",padding:"9px 0",borderBottom:"1px solid var(--border)",cursor:"pointer",fontSize:13}}>
-              <span style={{fontWeight:500}}>{c.symbol} {c.code}</span><span style={{fontWeight:700}}>{r.toFixed(c.code==="JPY"?2:4)}</span></div>)})}
-        </div>
+        {/* Schedule check */}
+        {warns.length>0&&<div style={{...C,marginBottom:16,padding:"14px 16px"}}>
+          <div style={{fontSize:13,fontWeight:800,marginBottom:10,display:"flex",alignItems:"center",gap:6,color:errCount?"var(--red)":"#C77700"}}>⚠️ בדיקת לוז · {warns.length} הערות</div>
+          {warns.map((w,i)=>(<div key={i} style={{display:"flex",gap:8,alignItems:"flex-start",padding:"8px 10px",borderRadius:10,background:wbg(w.level),marginBottom:6}}>
+            <span style={{fontSize:12,flexShrink:0,lineHeight:1.4}}>{w.level==="error"?"🔴":w.level==="warn"?"🟠":"🔵"}</span>
+            <span style={{fontSize:12.5,fontWeight:600,color:wc(w.level),lineHeight:1.5}}>{w.text}</span>
+          </div>))}
+        </div>}
+        {/* Timeline */}
+        {dated.length===0&&undated.length===0
+          ?<div style={{textAlign:"center",padding:"46px 20px",color:"var(--text2)"}}>
+             <div style={{fontSize:52,marginBottom:12}}>🗓️</div>
+             <p style={{fontWeight:700,fontSize:16,color:"var(--text)",marginBottom:6}}>המסלול ריק</p>
+             <p style={{fontSize:13,lineHeight:1.6}}>הוסף טיסות, מלונות והשכרות — האפליקציה תבנה לוז לפי תאריך ושעה ותתריע על התנגשויות וקונקשנים קצרים</p>
+           </div>
+          :<>
+            {days.map(day=>(<div key={day} style={{marginBottom:6}}>
+              <div style={{fontSize:12,fontWeight:800,color:"var(--text2)",letterSpacing:".3px",margin:"8px 0 10px"}}>{fmtDay(day)}</div>
+              {byDay[day].map(s=>{const st=segType(s.type);const Ic=st.Icon;return(
+                <div key={s.id} style={{display:"flex",gap:10}}>
+                  <div style={{width:50,flexShrink:0,textAlign:"left",paddingTop:11}}>
+                    <div style={{fontSize:13,fontWeight:800,color:"var(--text)"}}>{s.startTime||"—"}</div>
+                    {s.endTime&&s.endDate===s.startDate&&<div style={{fontSize:10,color:"var(--text2)",marginTop:2}}>{s.endTime}</div>}
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0}}>
+                    <div style={{width:34,height:34,borderRadius:"50%",background:st.color,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:`0 3px 10px ${st.color}55`}}><Ic size={16} color="#fff"/></div>
+                    <div style={{flex:1,width:2,background:"var(--border)",minHeight:14}}/>
+                  </div>
+                  {segCard(s)}
+                </div>);})}
+            </div>))}
+            {undated.length>0&&<div style={{marginTop:6}}>
+              <div style={{fontSize:12,fontWeight:800,color:"var(--text2)",margin:"8px 0 10px"}}>ללא תאריך</div>
+              {undated.map(s=>{const st=segType(s.type);const Ic=st.Icon;return(
+                <div key={s.id} style={{display:"flex",gap:10}}>
+                  <div style={{width:34,height:34,borderRadius:"50%",background:st.color,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:2}}><Ic size={16} color="#fff"/></div>
+                  {segCard(s)}
+                </div>);})}
+            </div>}
+          </>}
       </div><TabBar/></div>);
     }
 
