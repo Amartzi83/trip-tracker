@@ -841,7 +841,7 @@ export default function App(){
     const todayImg=`${import.meta.env.BASE_URL}home-bg.jpg`;
     return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"0 0 48px",position:"relative",overflow:"hidden"}}><style>{css}</style>{toastEl}
       {/* Photo background */}
-      <div style={{position:"absolute",top:0,left:0,right:0,height:330,backgroundImage:`url(${todayImg})`,backgroundSize:"cover",backgroundPosition:"center 48%",zIndex:0}}>
+      <div style={{position:"absolute",top:0,left:0,right:0,height:330,backgroundImage:`url(${todayImg})`,backgroundSize:"cover",backgroundPosition:"center 60%",zIndex:0}}>
         <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom,rgba(0,0,0,0.48) 0%,rgba(0,0,0,0.28) 40%,rgba(244,247,254,0.88) 82%,#F4F7FE 100%)"}}/>
       </div>
       <SparkleBg/>
