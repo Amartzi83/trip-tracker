@@ -3,9 +3,12 @@
 // itinerary segments from an uploaded document (image or PDF).
 // The user's API key is passed in (stored privately, never bundled).
 // ─────────────────────────────────────────────────────────────
-// "…-latest" tracks the current Flash model, so the app keeps working as Google
-// retires old versions (gemini-2.0 / 2.5 are already gone for new keys).
-const MODEL = "gemini-flash-latest";
+// "flash-lite-latest" tracks the current Flash-Lite model: it reads documents just
+// as well for this task, but has a much bigger free-tier quota and is far less
+// contended than "flash-latest" (which currently maps to the in-high-demand Gemini
+// 3.x flash and frequently returns 503/429). The "…-latest" alias also means the
+// app keeps working as Google retires old versions (gemini-2.0 / 2.5 are already gone).
+const MODEL = "gemini-flash-lite-latest";
 
 const PROMPT = `You parse travel documents (flight tickets, hotel/car-rental confirmations, train tickets, booking emails).
 Extract EVERY travel segment you find. Return ONLY a JSON array (no markdown, no prose).
