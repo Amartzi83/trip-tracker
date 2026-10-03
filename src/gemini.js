@@ -35,18 +35,26 @@ export async function extractItinerary(apiKey, base64Data, mimeType) {
     generationConfig: { temperature: 0, responseMimeType: "application/json" },
   };
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-goog-api-key": (apiKey || "").trim() },
-    body: JSON.stringify(body),
-  });
+  // The free tier intermittently returns 503 (high demand) / 429 (rate). Auto-retry
+  // a few times with backoff so a momentary spike doesn't look like a real failure.
+  let res;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": (apiKey || "").trim() },
+      body: JSON.stringify(body),
+    });
+    if (res.ok || (res.status !== 503 && res.status !== 429)) break;
+    if (attempt < 3) await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+  }
   if (!res.ok) {
     let msg = `שגיאה ${res.status}`;
     try { const e = await res.json(); if (e?.error?.message) msg = e.error.message; } catch {}
     if (res.status === 401) msg = "המפתח לא התקבל. ודא שהעתקת את מפתח ה-Gemini המלא מ-aistudio.google.com/apikey";
     else if (res.status === 400 || res.status === 403) msg = "מפתח לא תקין או ללא הרשאה ל-Generative Language API";
     else if (res.status === 404) msg = "מודל ה-AI לא זמין יותר — צריך לעדכן את האפליקציה";
-    else if (res.status === 429) msg = "חרגת ממכסת ה-AI החינמית — נסה שוב מאוחר יותר";
+    else if (res.status === 429) msg = "חרגת ממכסת ה-AI החינמית — נסה שוב בעוד דקה";
+    else if (res.status === 503) msg = "שרת ה-AI עמוס כרגע — נסה שוב בעוד רגע";
     throw new Error(msg);
   }
   const d = await res.json();
