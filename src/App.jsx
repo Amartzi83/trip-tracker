@@ -263,6 +263,7 @@ export default function App(){
   const fileLoading=useRef({});                      // fileId -> true while being fetched
   const personalJson=useRef("");                     // last personal {trips,userName} persisted/loaded (echo guard)
   const sharedJson=useRef({});                       // tripId -> last shared-trip JSON persisted/loaded (echo guard)
+  const cloudReady=useRef(false);                    // true after the first cloud snapshot — blocks saving stale local data over the cloud
   const[shareInput,setShareInput]=useState("");      // email being invited to a trip
   const[shareBusy,setShareBusy]=useState(false);
   const[authReset,setAuthReset]=useState(false);     // password-reset busy flag
@@ -441,6 +442,7 @@ export default function App(){
   useEffect(()=>{
     if(!firebaseReady||!authUser||!emailVerified)return;
     const myEmail=(authUser.email||"").toLowerCase();
+    cloudReady.current=false;                   // block saves until the cloud state is loaded (prevents stale-overwrite)
     let seeded=false;
     // Personal trips (users/{uid}) — keep any shared trips already in state.
     const unsubUser=watchUserData(authUser.uid,data=>{
@@ -456,6 +458,7 @@ export default function App(){
         saveUserData(authUser.uid,{trips:personal,userName,geminiKey}).catch(()=>{});
         personalJson.current=JSON.stringify({trips:personal,userName,geminiKey});
       }
+      cloudReady.current=true;                  // cloud state now known — saving is safe
     });
     // Shared trips (sharedTrips where I'm a member).
     const unsubShared=watchSharedTrips(myEmail,docs=>{
@@ -481,6 +484,7 @@ export default function App(){
   //    trip to its own sharedTrips doc. Per-bucket JSON guards skip echo-saves. ──
   useEffect(()=>{
     if(!firebaseReady||!authUser||!emailVerified)return;
+    if(!cloudReady.current)return;              // never save before the cloud has loaded (prevents overwriting cloud with stale local data)
     const personal=trips.filter(t=>!t.isShared).map(stripFlag);
     const shared=trips.filter(t=>t.isShared);
     const pj=JSON.stringify({trips:personal,userName,geminiKey});
@@ -706,6 +710,13 @@ export default function App(){
   function saveSeg(){if(!editSeg)return;const s={...editSeg};setTrips(p=>p.map(t=>t.id===activeTrip?{...t,itinerary:(t.itinerary||[]).some(x=>x.id===s.id)?(t.itinerary||[]).map(x=>x.id===s.id?s:x):[...(t.itinerary||[]),s]}:t));setEditSeg(null);setSub(null);show("נשמר ✓");}
   function delSeg(id){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,itinerary:(t.itinerary||[]).filter(x=>x.id!==id)}:t));setEditSeg(null);setSub(null);show("נמחק");}
   function saveGeminiKey(){const k=geminiDraft.trim();if(!k){show("הדבק מפתח");return;}setGeminiKey(k);setGeminiDraft('');show("✓ מפתח AI נשמר");}
+  async function runScan(b64,mime){
+    const segs=await extractItinerary(geminiKey,b64,mime);
+    if(!segs.length){show("לא זוהו פריטי מסלול בקובץ");return;}
+    const withIds=segs.map(s=>({...s,id:gid()}));
+    setTrips(p=>p.map(t=>t.id===activeTrip?{...t,itinerary:[...(t.itinerary||[]),...withIds]}:t));
+    show(`✓ זוהו ${withIds.length} פריטים — בדוק ותקן אם צריך`);
+  }
   async function scanWithAI(e){
     const f=e.target.files&&e.target.files[0];if(!f)return;e.target.value='';
     if(!geminiKey){show("הוסף קודם מפתח AI");return;}
@@ -715,11 +726,23 @@ export default function App(){
       let b64,mime;
       if((f.type||'').startsWith('image/')){b64=(await compressImage(f)).split(',')[1];mime='image/jpeg';}
       else{b64=(await fileToDataURL(f)).split(',')[1];mime=f.type||'application/pdf';}
-      const segs=await extractItinerary(geminiKey,b64,mime);
-      if(!segs.length){show("לא זוהו פריטי מסלול בקובץ");return;}
-      const withIds=segs.map(s=>({...s,id:gid()}));
-      setTrips(p=>p.map(t=>t.id===activeTrip?{...t,itinerary:[...(t.itinerary||[]),...withIds]}:t));
-      show(`✓ זוהו ${withIds.length} פריטים — בדוק ותקן אם צריך`);
+      await runScan(b64,mime);
+    }catch(err){show("שגיאת AI: "+(err?.message||"נסה שוב"));}
+    finally{setScanBusy(false);}
+  }
+  // Scan a file that's already in the trip's Files library (trip.docs).
+  async function scanExistingDoc(doc){
+    if(scanBusy)return;
+    if(!geminiKey){show("הוסף קודם מפתח AI");return;}
+    setScanBusy(true);show(`🔎 סורק "${doc.name}"…`);
+    try{
+      let data=fileCache[doc.id];
+      if(!data&&authUser){data=await loadUserFile(authUser.uid,doc.id);if(data)setFileCache(c=>({...c,[doc.id]:data}));}
+      if(!data&&doc.data)data=doc.data;
+      if(!data){show("לא הצלחתי לטעון את הקובץ");return;}
+      const b64=data.split(',')[1];
+      const mime=(data.match(/^data:([^;]+);/)||[])[1]||doc.mimeType||'image/jpeg';
+      await runScan(b64,mime);
     }catch(err){show("שגיאת AI: "+(err?.message||"נסה שוב"));}
     finally{setScanBusy(false);}
   }
@@ -1765,6 +1788,26 @@ export default function App(){
           </div>);
         })()}
         <div style={{...C,marginBottom:16}}>
+          <div style={{...L,marginBottom:6}}>✨ חיבור AI · Gemini</div>
+          <p style={{fontSize:12,color:"var(--text2)",marginBottom:12,lineHeight:1.6}}>מפתח לקריאה אוטומטית של כרטיסי טיסה ואישורי מלון במסך "מסלול". נשמר פרטי אצלך בלבד ומסתנכרן בין המכשירים שלך.</p>
+          {geminiKey
+            ?<div>
+               <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:12,background:"rgba(0,166,118,.1)",border:"1px solid rgba(0,166,118,.3)",marginBottom:10}}>
+                 <span style={{width:8,height:8,borderRadius:"50%",background:"#00A676",flexShrink:0}}/>
+                 <span style={{fontSize:13,fontWeight:700,color:"#00A676"}}>מחובר · מפתח פעיל</span>
+                 <span style={{fontSize:11,color:"var(--text2)",direction:"ltr",marginInlineStart:"auto"}}>····{geminiKey.slice(-4)}</span>
+               </div>
+               <button style={{...B2,color:"var(--red)"}} onClick={()=>{setGeminiKey("");show("המפתח הוסר");}}>הסר מפתח</button>
+             </div>
+            :<div>
+               <div style={{display:"flex",gap:8}}>
+                 <input style={{...I,flex:1,direction:"ltr",textAlign:"left",fontFamily:"monospace",fontSize:12}} type="password" placeholder="AIza..." value={geminiDraft} onChange={e=>setGeminiDraft(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")saveGeminiKey();}}/>
+                 <button onClick={saveGeminiKey} style={{...B1,width:"auto",padding:"0 18px"}}>שמור</button>
+               </div>
+               <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:"var(--accent)",marginTop:8,display:"inline-block"}}>קבל מפתח חינמי →</a>
+             </div>}
+        </div>
+        <div style={{...C,marginBottom:16}}>
           <div style={{...L,marginBottom:6}}>גיבוי מקומי · ללא צורך בטוקן</div>
           <p style={{fontSize:12,color:"var(--text2)",marginBottom:16,lineHeight:1.6}}>הדרך הכי בטוחה: הורד קובץ ושמור אותו ב-Drive/Dropbox. הקובץ שורד גם אם תאפס את הדפדפן.</p>
           <button style={B1} onClick={downloadBackup}>⬇ הורד קובץ גיבוי</button>
@@ -2177,15 +2220,23 @@ export default function App(){
             ?<>
                <button onClick={()=>!scanBusy&&scanInputRef.current&&scanInputRef.current.click()} disabled={scanBusy} style={{...B1,opacity:scanBusy?.6:1,cursor:scanBusy?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}><Upload size={18}/>{scanBusy?"סורק…":"סרוק כרטיס / אישור (תמונה / PDF)"}</button>
                <p style={{fontSize:11,color:"var(--text2)",marginTop:8,lineHeight:1.6}}>העלה כרטיס טיסה או אישור מלון — ה-AI יקרא וימלא את פרטי המסלול אוטומטית (הכול ניתן לעריכה).</p>
-               <button onClick={()=>{setGeminiKey("");show("המפתח הוסר");}} style={{background:"none",border:"none",color:"var(--text2)",fontSize:11,cursor:"pointer",textDecoration:"underline",marginTop:4,fontFamily:"Heebo,system-ui",padding:0}}>הסר מפתח AI</button>
+               {(trip.docs||[]).length>0&&<div style={{marginTop:12,borderTop:"1px solid var(--border)",paddingTop:12}}>
+                 <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",marginBottom:8}}>או סרוק מהקבצים שכבר העלית:</div>
+                 <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:190,overflowY:"auto"}}>
+                   {(trip.docs||[]).map(d=>(
+                     <button key={d.id} disabled={scanBusy} onClick={()=>scanExistingDoc(d)} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:12,border:"1px solid var(--border)",background:"var(--card)",cursor:scanBusy?"default":"pointer",fontFamily:"Heebo,system-ui",textAlign:"right",opacity:scanBusy?.6:1}}>
+                       <FileText size={15} color="var(--accent)" style={{flexShrink:0}}/>
+                       <span style={{flex:1,fontSize:12.5,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.name}</span>
+                       <span style={{fontSize:11,fontWeight:700,color:"var(--accent)",flexShrink:0}}>סרוק ✨</span>
+                     </button>
+                   ))}
+                 </div>
+               </div>}
+               <button onClick={()=>{setGeminiKey("");show("המפתח הוסר");}} style={{background:"none",border:"none",color:"var(--text2)",fontSize:11,cursor:"pointer",textDecoration:"underline",marginTop:10,fontFamily:"Heebo,system-ui",padding:0}}>הסר מפתח AI</button>
              </>
             :<>
-               <p style={{fontSize:12,color:"var(--text2)",lineHeight:1.6,marginBottom:10}}>הדבק כאן את מפתח ה-Gemini שלך כדי לקרוא קבצים אוטומטית. המפתח נשמר פרטי אצלך בלבד (לא בקוד).</p>
-               <div style={{display:"flex",gap:8}}>
-                 <input style={{...I,flex:1,direction:"ltr",textAlign:"left",fontFamily:"monospace",fontSize:12}} type="password" placeholder="AIza..." value={geminiDraft} onChange={e=>setGeminiDraft(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")saveGeminiKey();}}/>
-                 <button onClick={saveGeminiKey} style={{...B1,width:"auto",padding:"0 18px"}}>שמור</button>
-               </div>
-               <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:"var(--accent)",marginTop:8,display:"inline-block"}}>קבל מפתח חינמי →</a>
+               <p style={{fontSize:12,color:"var(--text2)",lineHeight:1.6,marginBottom:10}}>כדי לסרוק קבצים אוטומטית, הוסף מפתח Gemini בהגדרות (⚙ בדף הבית → "חיבור AI").</p>
+               <button onClick={()=>setScreen("syncSettings")} style={{...B2,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><Settings size={16}/>פתח הגדרות AI</button>
              </>}
         </div>
         {/* Schedule check */}
