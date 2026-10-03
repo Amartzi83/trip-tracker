@@ -1,6 +1,7 @@
 // v2.1
 import { useState, useEffect, useMemo, useRef } from "react";
 import { firebaseReady, onAuth, signUp, signIn, logOut, resetPassword, resendVerification, reloadUser, loadUserData, watchUserData, saveUserData, saveUserFile, loadUserFile, deleteUserFile, watchSharedTrips, saveSharedTrip, deleteSharedTrip, authErrorText } from "./firebase";
+import { extractItinerary } from "./gemini";
 import { Plane, Plus, ChevronLeft, MoreVertical, ArrowLeftRight, Globe, Receipt, TrendingUp, Coffee, UtensilsCrossed, ShoppingBag, Hotel, Bus, Wine, HeartPulse, Smartphone, Gift, Shield, Shirt, MapPin, Ticket, Camera, Music, Landmark, Palmtree, Eye, Pencil, Download, Share2, Settings, Trash2, UserPlus, Volume2, X, Clock, CreditCard, Wallet, Users, Copy, ExternalLink, ChevronRight, Compass, Utensils, Beer, Baby, ShoppingCart, TreePine, Waves, Gem, Map, Route, DollarSign, Navigation, Globe2, Star, Sun, FileText, Upload, Cloud, CalendarDays, Link2, Wind } from "lucide-react";
 
 /* ═══════ DATA ═══════ */
@@ -315,6 +316,10 @@ export default function App(){
   const[planTab,setPlanTab]=useState("visits"); // "visits" | "shopping" — trip planning lists
   const[planInput,setPlanInput]=useState("");
   const[editSeg,setEditSeg]=useState(null);     // itinerary segment being added/edited (form object)
+  const[geminiKey,setGeminiKey]=useState(()=>localStorage.getItem('tt_gemini_key')||''); // private AI key
+  const[geminiDraft,setGeminiDraft]=useState('');
+  const[scanBusy,setScanBusy]=useState(false);
+  const scanInputRef=useRef(null);
   const[trFrom,setTrFrom]=useState("en");
   const[trTo,setTrTo]=useState("th");
   const[trText,setTrText]=useState("");
@@ -440,15 +445,16 @@ export default function App(){
     // Personal trips (users/{uid}) — keep any shared trips already in state.
     const unsubUser=watchUserData(authUser.uid,data=>{
       if(data&&Array.isArray(data.trips)){
-        personalJson.current=JSON.stringify({trips:data.trips,userName:(typeof data.userName==="string"?data.userName:"")});
+        personalJson.current=JSON.stringify({trips:data.trips,userName:(typeof data.userName==="string"?data.userName:""),geminiKey:data.geminiKey||""});
         setTrips(cur=>[...data.trips.map(t=>({...t,isShared:false})),...cur.filter(t=>t.isShared)]);
         if(typeof data.userName==="string")setUserName(data.userName);
+        if(typeof data.geminiKey==="string"&&data.geminiKey)setGeminiKey(data.geminiKey);
         setCloudStatus("saved");
       }else if(!seeded){
         seeded=true;                            // no cloud doc → upload this device's personal data
         const personal=trips.filter(t=>!t.isShared).map(stripFlag);
-        saveUserData(authUser.uid,{trips:personal,userName}).catch(()=>{});
-        personalJson.current=JSON.stringify({trips:personal,userName});
+        saveUserData(authUser.uid,{trips:personal,userName,geminiKey}).catch(()=>{});
+        personalJson.current=JSON.stringify({trips:personal,userName,geminiKey});
       }
     });
     // Shared trips (sharedTrips where I'm a member).
@@ -477,7 +483,7 @@ export default function App(){
     if(!firebaseReady||!authUser||!emailVerified)return;
     const personal=trips.filter(t=>!t.isShared).map(stripFlag);
     const shared=trips.filter(t=>t.isShared);
-    const pj=JSON.stringify({trips:personal,userName});
+    const pj=JSON.stringify({trips:personal,userName,geminiKey});
     const personalChanged=pj!==personalJson.current;
     const changedShared=shared.filter(t=>JSON.stringify(stripFlag(t))!==sharedJson.current[t.id]);
     if(!personalChanged&&!changedShared.length)return;
@@ -486,12 +492,12 @@ export default function App(){
     if(cloudSaveTimer.current)clearTimeout(cloudSaveTimer.current);
     cloudSaveTimer.current=setTimeout(async()=>{
       try{
-        if(personalChanged){await saveUserData(authUser.uid,{trips:personal,userName});personalJson.current=pj;}
+        if(personalChanged){await saveUserData(authUser.uid,{trips:personal,userName,geminiKey});personalJson.current=pj;}
         for(const t of changedShared){const clean={...stripFlag(t),lastEditedBy:myEmail};await saveSharedTrip(clean);sharedJson.current[t.id]=JSON.stringify(clean);}
         setCloudStatus("saved");
       }catch{setCloudStatus("error");}
     },1200);
-  },[trips,userName,authUser,emailVerified]);
+  },[trips,userName,geminiKey,authUser,emailVerified]);
 
   // ── Firebase: migrate any legacy inline file data to the files subcollection.
   //    Older docs embedded the base64 `data` inside trips; move it out so the
@@ -565,6 +571,7 @@ export default function App(){
   }
 
   useEffect(()=>{try{localStorage.setItem('tt_extra_currs',JSON.stringify(extraCurrs))}catch{}},[extraCurrs]);
+  useEffect(()=>{try{localStorage.setItem('tt_gemini_key',geminiKey)}catch{}},[geminiKey]);
   useEffect(()=>{try{if(homeTripId)localStorage.setItem('tt_home_trip',homeTripId);else localStorage.removeItem('tt_home_trip')}catch{}},[homeTripId]);
   useEffect(()=>{try{localStorage.setItem('tt_home_weather',JSON.stringify(homeWeather))}catch{}},[homeWeather]);
   useEffect(()=>{try{localStorage.setItem('tt_home_rate_from',homeRateFrom);localStorage.setItem('tt_home_rate_to',homeRateTo)}catch{}},[homeRateFrom,homeRateTo]);
@@ -698,6 +705,24 @@ export default function App(){
   function newSeg(type){setEditSeg({id:gid(),type,title:"",from:"",to:"",provider:"",confirmation:"",seat:"",location:"",note:"",startDate:trip?.startDate||"",startTime:"",endDate:"",endTime:""});setSub("editSeg");}
   function saveSeg(){if(!editSeg)return;const s={...editSeg};setTrips(p=>p.map(t=>t.id===activeTrip?{...t,itinerary:(t.itinerary||[]).some(x=>x.id===s.id)?(t.itinerary||[]).map(x=>x.id===s.id?s:x):[...(t.itinerary||[]),s]}:t));setEditSeg(null);setSub(null);show("נשמר ✓");}
   function delSeg(id){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,itinerary:(t.itinerary||[]).filter(x=>x.id!==id)}:t));setEditSeg(null);setSub(null);show("נמחק");}
+  function saveGeminiKey(){const k=geminiDraft.trim();if(!k){show("הדבק מפתח");return;}setGeminiKey(k);setGeminiDraft('');show("✓ מפתח AI נשמר");}
+  async function scanWithAI(e){
+    const f=e.target.files&&e.target.files[0];if(!f)return;e.target.value='';
+    if(!geminiKey){show("הוסף קודם מפתח AI");return;}
+    if(f.size>8*1024*1024){show("קובץ גדול מדי (עד 8MB)");return;}
+    setScanBusy(true);show("🔎 סורק עם AI…");
+    try{
+      let b64,mime;
+      if((f.type||'').startsWith('image/')){b64=(await compressImage(f)).split(',')[1];mime='image/jpeg';}
+      else{b64=(await fileToDataURL(f)).split(',')[1];mime=f.type||'application/pdf';}
+      const segs=await extractItinerary(geminiKey,b64,mime);
+      if(!segs.length){show("לא זוהו פריטי מסלול בקובץ");return;}
+      const withIds=segs.map(s=>({...s,id:gid()}));
+      setTrips(p=>p.map(t=>t.id===activeTrip?{...t,itinerary:[...(t.itinerary||[]),...withIds]}:t));
+      show(`✓ זוהו ${withIds.length} פריטים — בדוק ותקן אם צריך`);
+    }catch(err){show("שגיאת AI: "+(err?.message||"נסה שוב"));}
+    finally{setScanBusy(false);}
+  }
   function getCSV(){
     if(!trip)return"";
     const q=c=>`"${String(c==null?"":c).replace(/"/g,'""')}"`;
@@ -2143,6 +2168,25 @@ export default function App(){
           <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
             {SEG_TYPES.map(st=>{const Ic=st.Icon;return(<button key={st.id} onClick={()=>newSeg(st.id)} style={{display:"flex",alignItems:"center",gap:6,padding:"8px 12px",borderRadius:12,border:`1.5px solid ${st.color}45`,background:st.color+"12",color:st.color,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"Heebo,system-ui"}}><Ic size={15}/>{st.l}</button>);})}
           </div>
+        </div>
+        {/* AI scan */}
+        <input ref={scanInputRef} type="file" accept="image/*,application/pdf" style={{display:"none"}} onChange={scanWithAI}/>
+        <div style={{...C,marginBottom:16,padding:"14px 16px"}}>
+          <div style={{fontSize:11,fontWeight:700,color:"var(--text2)",letterSpacing:"1px",marginBottom:10}}>✨ סריקת AI</div>
+          {geminiKey
+            ?<>
+               <button onClick={()=>!scanBusy&&scanInputRef.current&&scanInputRef.current.click()} disabled={scanBusy} style={{...B1,opacity:scanBusy?.6:1,cursor:scanBusy?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}><Upload size={18}/>{scanBusy?"סורק…":"סרוק כרטיס / אישור (תמונה / PDF)"}</button>
+               <p style={{fontSize:11,color:"var(--text2)",marginTop:8,lineHeight:1.6}}>העלה כרטיס טיסה או אישור מלון — ה-AI יקרא וימלא את פרטי המסלול אוטומטית (הכול ניתן לעריכה).</p>
+               <button onClick={()=>{setGeminiKey("");show("המפתח הוסר");}} style={{background:"none",border:"none",color:"var(--text2)",fontSize:11,cursor:"pointer",textDecoration:"underline",marginTop:4,fontFamily:"Heebo,system-ui",padding:0}}>הסר מפתח AI</button>
+             </>
+            :<>
+               <p style={{fontSize:12,color:"var(--text2)",lineHeight:1.6,marginBottom:10}}>הדבק כאן את מפתח ה-Gemini שלך כדי לקרוא קבצים אוטומטית. המפתח נשמר פרטי אצלך בלבד (לא בקוד).</p>
+               <div style={{display:"flex",gap:8}}>
+                 <input style={{...I,flex:1,direction:"ltr",textAlign:"left",fontFamily:"monospace",fontSize:12}} type="password" placeholder="AIza..." value={geminiDraft} onChange={e=>setGeminiDraft(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")saveGeminiKey();}}/>
+                 <button onClick={saveGeminiKey} style={{...B1,width:"auto",padding:"0 18px"}}>שמור</button>
+               </div>
+               <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:"var(--accent)",marginTop:8,display:"inline-block"}}>קבל מפתח חינמי →</a>
+             </>}
         </div>
         {/* Schedule check */}
         {warns.length>0&&<div style={{...C,marginBottom:16,padding:"14px 16px"}}>
