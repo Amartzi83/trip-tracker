@@ -32,17 +32,18 @@ export async function extractItinerary(apiKey, base64Data, mimeType) {
     ] }],
     generationConfig: { temperature: 0, responseMimeType: "application/json" },
   };
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "x-goog-api-key": (apiKey || "").trim() },
     body: JSON.stringify(body),
   });
   if (!res.ok) {
     let msg = `שגיאה ${res.status}`;
     try { const e = await res.json(); if (e?.error?.message) msg = e.error.message; } catch {}
-    if (res.status === 400 || res.status === 403) msg = "מפתח ה-AI לא תקין או ללא הרשאה ל-Generative Language API";
-    if (res.status === 429) msg = "חרגת ממכסת ה-AI החינמית — נסה שוב מאוחר יותר";
+    if (res.status === 401) msg = "המפתח לא התקבל. ודא שזה מפתח Gemini מ-aistudio.google.com/apikey (מתחיל ב-AIza)";
+    else if (res.status === 400 || res.status === 403) msg = "מפתח לא תקין או ללא הרשאה ל-Generative Language API (מתחיל ב-AIza)";
+    else if (res.status === 429) msg = "חרגת ממכסת ה-AI החינמית — נסה שוב מאוחר יותר";
     throw new Error(msg);
   }
   const d = await res.json();

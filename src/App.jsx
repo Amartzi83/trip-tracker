@@ -732,7 +732,7 @@ export default function App(){
   function newSeg(type){setEditSeg({id:gid(),type,title:"",from:"",to:"",provider:"",confirmation:"",seat:"",location:"",note:"",startDate:trip?.startDate||"",startTime:"",endDate:"",endTime:""});setSub("editSeg");}
   function saveSeg(){if(!editSeg)return;const s={...editSeg};setTrips(p=>p.map(t=>t.id===activeTrip?{...t,itinerary:(t.itinerary||[]).some(x=>x.id===s.id)?(t.itinerary||[]).map(x=>x.id===s.id?s:x):[...(t.itinerary||[]),s]}:t));setEditSeg(null);setSub(null);show("נשמר ✓");}
   function delSeg(id){setTrips(p=>p.map(t=>t.id===activeTrip?{...t,itinerary:(t.itinerary||[]).filter(x=>x.id!==id)}:t));setEditSeg(null);setSub(null);show("נמחק");}
-  function saveGeminiKey(){const k=geminiDraft.trim();if(!k){show("הדבק מפתח");return;}setGeminiKey(k);setGeminiDraft('');show("✓ מפתח AI נשמר");}
+  function saveGeminiKey(){const k=geminiDraft.trim();if(!k){show("הדבק מפתח");return;}setGeminiKey(k);setGeminiDraft('');show(k.startsWith("AIza")?"✓ מפתח AI נשמר":"נשמר — שים לב: מפתח Gemini אמור להתחיל ב-AIza");}
   async function runScan(b64,mime){
     const segs=await extractItinerary(geminiKey,b64,mime);
     if(!segs.length){show("לא זוהו פריטי מסלול בקובץ");return;}
