@@ -762,10 +762,10 @@ export default function App(){
       ]},
       {title:"כלים",items:[
         {id:"tr",label:"תרגום",sub:"Google Translate",Icon:Globe,color:"#00B894",fn:()=>setScreen("translateScreen")},
-        {id:"disc",label:"גלה יעדים",sub:"חקר את היעד שלך",Icon:Globe2,color:"#E17055",fn:()=>setScreen("discoverScreen")},
+        {id:"money",label:"כספים ועמלות",sub:"המרה · שערים · עמלות",Icon:Wallet,color:"#f0932b",fn:()=>setScreen("moneyScreen")},
       ]},
       {title:"אפליקציות שימושיות",items:[
-        {id:"money",label:"כספים ועמלות",sub:"המרה · שערים · עמלות",Icon:Wallet,color:"#f0932b",fn:()=>setScreen("moneyScreen")},
+        {id:"disc",label:"גלה יעדים",sub:"חקר את היעד שלך",Icon:Globe2,color:"#E17055",fn:()=>setScreen("discoverScreen")},
         {id:"events",label:"אירועים וחגים",sub:"לוח אירועים",Icon:CalendarDays,color:"#e84393",fn:()=>setScreen("eventsScreen")},
         {id:"links",label:"קישורים שימושיים",sub:"כל כלי הטיול",Icon:Link2,color:"#6c5ce7",fn:()=>setScreen("linksScreen")},
         {id:"thaiApps",label:"אפליקציות לתאילנד",sub:"Grab · Bolt · Lazada",Icon:Smartphone,color:"#00B14F",fn:()=>setScreen("thaiAppsScreen")},
