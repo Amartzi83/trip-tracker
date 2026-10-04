@@ -455,12 +455,6 @@ export default function App(){
         if(typeof data.userName==="string")setUserName(data.userName);
         if(typeof data.geminiKey==="string"&&data.geminiKey)setGeminiKey(data.geminiKey);
         setCloudStatus("saved");
-        // daily cloud snapshot (safety net) — once per day, from the loaded cloud data
-        const today=new Date().toISOString().slice(0,10);
-        if(data.trips.length&&backupDoneRef.current!==today){
-          backupDoneRef.current=today;
-          ensureDailyBackup(authUser.uid,today,{trips:data.trips,userName:(typeof data.userName==="string"?data.userName:userName)}).catch(()=>{});
-        }
       }else if(!seeded){
         seeded=true;                            // no cloud doc → upload this device's personal data
         const personal=trips.filter(t=>!t.isShared).map(stripFlag);
@@ -511,6 +505,17 @@ export default function App(){
       }catch{setCloudStatus("error");}
     },1200);
   },[trips,userName,geminiKey,authUser,emailVerified]);
+
+  // ── Firebase: daily cloud snapshot (safety net). Once per day it stores the FULL
+  //    set of trips — personal AND shared — so every list (expenses, itinerary,
+  //    visits, shopping, packing) is captured, not just the personal user doc. ──
+  useEffect(()=>{
+    if(!firebaseReady||!authUser||!emailVerified||!cloudReady.current)return;
+    const today=new Date().toISOString().slice(0,10);
+    if(!trips.length||backupDoneRef.current===today)return;
+    backupDoneRef.current=today;
+    ensureDailyBackup(authUser.uid,today,{trips:trips.map(stripFlag),userName}).catch(()=>{backupDoneRef.current=null;});
+  },[trips,userName,authUser,emailVerified]);
 
   // ── Firebase: migrate any legacy inline file data to the files subcollection.
   //    Older docs embedded the base64 `data` inside trips; move it out so the
@@ -784,6 +789,14 @@ export default function App(){
     section("נקודות ביקור / Visit Points",trip.visits,["Place","Status"],it=>it.checked?"בוצע / Done":"לביצוע / To do");
     section("רשימת קניות / Shopping",trip.shopping,["Item","Status"],it=>it.checked?"נקנה / Bought":"לקנות / To buy");
     section("רשימת ציוד / Packing",trip.packing,["Item","Status"],it=>it.checked?"נארז / Packed":"לארוז / To pack");
+    // ── Itinerary (מסלול) ──
+    if(trip.itinerary&&trip.itinerary.length){
+      lines.push("");lines.push(q("מסלול / Itinerary"));
+      lines.push(["Type","Title","Provider","From","To","Start Date","Start Time","End Date","End Time","Confirmation","Location","Note"].map(q).join(","));
+      [...trip.itinerary].sort((a,b)=>(a.startDate||"").localeCompare(b.startDate||"")||(a.startTime||"").localeCompare(b.startTime||"")).forEach(s=>{
+        lines.push([segType(s.type).l,segTitle(s),s.provider,s.from,s.to,s.startDate,s.startTime,s.endDate,s.endTime,s.confirmation,s.location,s.note].map(q).join(","));
+      });
+    }
     return lines.join("\n");
   }
   function getShareText(){if(!trip)return"";return`✈️ ${trip.name}\n📅 ${trip.startDate||"?"} → ${trip.endDate||"?"}\n💰 ${fC(totalSpent,trip.currency)}\n📊 Budget: ${trip.budget?fC(trip.budget,trip.currency):"N/A"}\n📝 ${trip.expenses.length} expenses`}
