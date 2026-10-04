@@ -975,7 +975,7 @@ export default function App(){
       ]},
       {title:"כלים",items:[
         {id:"tr",label:"תרגום",sub:"Google Translate",Icon:Globe,color:"#00B894",fn:()=>setScreen("translateScreen")},
-        {id:"money",label:"כספים ועמלות",sub:"המרה · שערים · עמלות",Icon:Wallet,color:"#f0932b",fn:()=>setScreen("moneyScreen")},
+        {id:"money",label:"כספים המרה ועמלות",sub:"המרה · שערים · עמלות",Icon:Wallet,color:"#f0932b",fn:()=>setScreen("moneyScreen")},
       ]},
       {title:"אפליקציות שימושיות",items:[
         {id:"disc",label:"גלה יעדים",sub:"חקר את היעד שלך",Icon:Globe2,color:"#E17055",fn:()=>setScreen("discoverScreen")},
@@ -1290,7 +1290,7 @@ export default function App(){
     return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"24px 16px 48px"}}><style>{css}</style>{toastEl}
       <div style={{maxWidth:480,margin:"0 auto"}}>
         <button onClick={()=>setScreen("home")} style={BK}><ChevronLeft size={18}/>בית</button>
-        <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 4px",display:"flex",alignItems:"center",gap:8}}><Wallet size={22} style={{color:"#f0932b"}}/>כספים ועמלות</h2>
+        <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 4px",display:"flex",alignItems:"center",gap:8}}><Wallet size={22} style={{color:"#f0932b"}}/>כספים המרה ועמלות</h2>
         <p style={{fontSize:11,color:"var(--text2)",marginBottom:18}}>המרת מטבעות · שערים חיים · עמלות בנקים</p>
 
         {/* Converter */}
