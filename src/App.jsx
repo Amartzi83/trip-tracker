@@ -130,6 +130,9 @@ const COUNTRIES=[
   {en:"Algeria",he:"אלג'יריה",iso:"DZ"},{en:"Zimbabwe",he:"זימבבואה",iso:"ZW"},
 ];
 const COUNTRY_ISO=Object.fromEntries([...COUNTRIES.map(c=>[c.en,c.iso]),...COUNTRIES.map(c=>[c.he,c.iso])]);
+const HE2EN=Object.fromEntries(COUNTRIES.map(c=>[c.he,c.en])); // Hebrew country name → English (for image search)
+// Key used to look up / cache a trip's scenery photo: its country, or its name if no country set.
+const tripImgKey=(t)=>((t&&t.country&&t.country.trim())||(t&&t.name&&t.name.trim())||"");
 function isoToFlag(iso){if(!iso||iso.length!==2)return"🌍";return String.fromCodePoint(...iso.toUpperCase().split('').map(c=>0x1F1E6+c.charCodeAt(0)-65));}
 
 const LANGS=[{code:"en",name:"English",flag:"🇬🇧"},{code:"he",name:"Hebrew",flag:"🇮🇱"},{code:"th",name:"Thai",flag:"🇹🇭"},{code:"es",name:"Spanish",flag:"🇪🇸"},{code:"fr",name:"French",flag:"🇫🇷"},{code:"de",name:"German",flag:"🇩🇪"},{code:"it",name:"Italian",flag:"🇮🇹"},{code:"pt",name:"Portuguese",flag:"🇵🇹"},{code:"ja",name:"Japanese",flag:"🇯🇵"},{code:"zh",name:"Chinese",flag:"🇨🇳"},{code:"ko",name:"Korean",flag:"🇰🇷"},{code:"ar",name:"Arabic",flag:"🇸🇦"},{code:"tr",name:"Turkish",flag:"🇹🇷"},{code:"ru",name:"Russian",flag:"🇷🇺"},{code:"hi",name:"Hindi",flag:"🇮🇳"},{code:"vi",name:"Vietnamese",flag:"🇻🇳"},{code:"el",name:"Greek",flag:"🇬🇷"},{code:"nl",name:"Dutch",flag:"🇳🇱"},{code:"ro",name:"Romanian",flag:"🇷🇴"}];
@@ -599,17 +602,18 @@ export default function App(){
   // Fetch a representative scenery photo for each trip's country (once per country),
   // from Openverse (free, no key). Cached in localStorage so tiles load instantly after.
   useEffect(()=>{
-    const wanted=[...new Set(trips.map(t=>(t.country||"").trim()).filter(Boolean))].filter(c=>!countryImgs[c]);
+    const wanted=[...new Set(trips.map(tripImgKey).filter(Boolean))].filter(k=>!countryImgs[k]);
     if(!wanted.length)return;
     let cancelled=false;
     (async()=>{
-      for(const c of wanted){
+      for(const k of wanted){
         try{
-          const r=await fetch("https://api.openverse.org/v1/images/?q="+encodeURIComponent(c+" landmark travel")+"&page_size=1&mature=false");
+          const term=(HE2EN[k]||k)+" landmark travel"; // query in English when we can translate the name
+          const r=await fetch("https://api.openverse.org/v1/images/?q="+encodeURIComponent(term)+"&page_size=1&mature=false");
           if(!r.ok)continue;
           const j=await r.json();
           const img=j.results&&j.results[0]&&(j.results[0].thumbnail||j.results[0].url);
-          if(img&&!cancelled)setCountryImgs(prev=>{const next={...prev,[c]:img};try{localStorage.setItem('tt_country_imgs',JSON.stringify(next))}catch{}; return next;});
+          if(img&&!cancelled)setCountryImgs(prev=>{const next={...prev,[k]:img};try{localStorage.setItem('tt_country_imgs',JSON.stringify(next))}catch{}; return next;});
         }catch{}
       }
     })();
@@ -1171,8 +1175,8 @@ export default function App(){
           return(
             <div style={{marginBottom:28}}>
               <div onClick={()=>{setActiveTrip(t.id);setScreen("trip");setTab("entries");}} style={{background:"linear-gradient(135deg,#1E5BD6,#163FA5)",borderRadius:22,padding:"18px 20px 20px",color:"#fff",position:"relative",overflow:"hidden",cursor:"pointer",boxShadow:"0 8px 28px rgba(30,91,214,.3)"}}>
-                {countryImgs[t.country]&&<div style={{position:"absolute",inset:0,zIndex:0,backgroundImage:`url("${countryImgs[t.country]}")`,backgroundSize:"cover",backgroundPosition:"center"}}/>}
-                {countryImgs[t.country]&&<div style={{position:"absolute",inset:0,zIndex:1,background:"linear-gradient(135deg,rgba(30,91,214,0.55),rgba(22,63,165,0.72))"}}/>}
+                {countryImgs[tripImgKey(t)]&&<div style={{position:"absolute",inset:0,zIndex:0,backgroundImage:`url("${countryImgs[tripImgKey(t)]}")`,backgroundSize:"cover",backgroundPosition:"center"}}/>}
+                {countryImgs[tripImgKey(t)]&&<div style={{position:"absolute",inset:0,zIndex:1,background:"linear-gradient(135deg,rgba(30,91,214,0.55),rgba(22,63,165,0.72))"}}/>}
                 <Sparkle right={16} top={14} size={14} opacity={0.7} color="#fff"/>
                 <Sparkle right={44} top={32} size={9} opacity={0.5} color="#fff"/>
                 <Sparkle left={20} bottom={18} size={11} opacity={0.5} color="#fff"/>
@@ -1254,8 +1258,8 @@ export default function App(){
             <div key={t.id} onClick={()=>{setActiveTrip(t.id);setScreen("trip");setTab("entries");setSub(null)}}
               style={{marginBottom:14,cursor:"pointer",animation:`fadeUp .4s ease ${ti*0.06}s both`,borderRadius:24,overflow:"hidden",border:"1px solid var(--border)"}}>
               <div style={{background:getCountryGrad(t.country),padding:"20px 20px 28px",position:"relative",overflow:"hidden",minHeight:120}}>
-                {countryImgs[t.country]&&<div style={{position:"absolute",inset:0,backgroundImage:`url("${countryImgs[t.country]}")`,backgroundSize:"cover",backgroundPosition:"center"}}/>}
-                <div style={{position:"absolute",top:0,left:0,right:0,bottom:0,background:countryImgs[t.country]?"linear-gradient(180deg,rgba(0,0,0,0.35),rgba(0,0,0,0.65))":"linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,0.5))"}}/>
+                {countryImgs[tripImgKey(t)]&&<div style={{position:"absolute",inset:0,backgroundImage:`url("${countryImgs[tripImgKey(t)]}")`,backgroundSize:"cover",backgroundPosition:"center"}}/>}
+                <div style={{position:"absolute",top:0,left:0,right:0,bottom:0,background:countryImgs[tripImgKey(t)]?"linear-gradient(180deg,rgba(0,0,0,0.35),rgba(0,0,0,0.65))":"linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,0.5))"}}/>
                 <div style={{position:"relative",zIndex:1,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                   <div>
                     <div style={{fontSize:40,lineHeight:1,marginBottom:6}}>{gF(t.country)}</div>
