@@ -318,6 +318,8 @@ export default function App(){
   const[packFilter,setPackFilter]=useState("all");
   const[planTab,setPlanTab]=useState("visits"); // "visits" | "shopping" — trip planning lists
   const[planInput,setPlanInput]=useState("");
+  // per-country scenery photo for trip tiles (fetched once from Openverse, cached locally)
+  const[countryImgs,setCountryImgs]=useState(()=>{try{return JSON.parse(localStorage.getItem('tt_country_imgs')||'{}')}catch{return{}}});
   const[editSeg,setEditSeg]=useState(null);     // itinerary segment being added/edited (form object)
   const[geminiKey,setGeminiKey]=useState(()=>localStorage.getItem('tt_gemini_key')||''); // private AI key
   const[geminiDraft,setGeminiDraft]=useState('');
@@ -594,6 +596,25 @@ export default function App(){
   useEffect(()=>{try{localStorage.setItem('tt_extra_currs',JSON.stringify(extraCurrs))}catch{}},[extraCurrs]);
   useEffect(()=>{try{localStorage.setItem('tt_gemini_key',geminiKey)}catch{}},[geminiKey]);
   useEffect(()=>{try{if(homeTripId)localStorage.setItem('tt_home_trip',homeTripId);else localStorage.removeItem('tt_home_trip')}catch{}},[homeTripId]);
+  // Fetch a representative scenery photo for each trip's country (once per country),
+  // from Openverse (free, no key). Cached in localStorage so tiles load instantly after.
+  useEffect(()=>{
+    const wanted=[...new Set(trips.map(t=>(t.country||"").trim()).filter(Boolean))].filter(c=>!countryImgs[c]);
+    if(!wanted.length)return;
+    let cancelled=false;
+    (async()=>{
+      for(const c of wanted){
+        try{
+          const r=await fetch("https://api.openverse.org/v1/images/?q="+encodeURIComponent(c+" landmark travel")+"&page_size=1&mature=false");
+          if(!r.ok)continue;
+          const j=await r.json();
+          const img=j.results&&j.results[0]&&(j.results[0].thumbnail||j.results[0].url);
+          if(img&&!cancelled)setCountryImgs(prev=>{const next={...prev,[c]:img};try{localStorage.setItem('tt_country_imgs',JSON.stringify(next))}catch{}; return next;});
+        }catch{}
+      }
+    })();
+    return ()=>{cancelled=true;};
+  },[trips]);
   useEffect(()=>{try{localStorage.setItem('tt_home_weather',JSON.stringify(homeWeather))}catch{}},[homeWeather]);
   useEffect(()=>{try{localStorage.setItem('tt_home_rate_from',homeRateFrom);localStorage.setItem('tt_home_rate_to',homeRateTo)}catch{}},[homeRateFrom,homeRateTo]);
   useEffect(()=>{(async()=>{try{const r=await fetch("https://open.er-api.com/v6/latest/USD");const d=await r.json();if(d?.rates){setRates(d.rates);setRatesTime(new Date().toLocaleTimeString())}}catch{}})()},[]);
@@ -1150,10 +1171,12 @@ export default function App(){
           return(
             <div style={{marginBottom:28}}>
               <div onClick={()=>{setActiveTrip(t.id);setScreen("trip");setTab("entries");}} style={{background:"linear-gradient(135deg,#1E5BD6,#163FA5)",borderRadius:22,padding:"18px 20px 20px",color:"#fff",position:"relative",overflow:"hidden",cursor:"pointer",boxShadow:"0 8px 28px rgba(30,91,214,.3)"}}>
+                {countryImgs[t.country]&&<div style={{position:"absolute",inset:0,zIndex:0,backgroundImage:`url("${countryImgs[t.country]}")`,backgroundSize:"cover",backgroundPosition:"center"}}/>}
+                {countryImgs[t.country]&&<div style={{position:"absolute",inset:0,zIndex:1,background:"linear-gradient(135deg,rgba(30,91,214,0.55),rgba(22,63,165,0.72))"}}/>}
                 <Sparkle right={16} top={14} size={14} opacity={0.7} color="#fff"/>
                 <Sparkle right={44} top={32} size={9} opacity={0.5} color="#fff"/>
                 <Sparkle left={20} bottom={18} size={11} opacity={0.5} color="#fff"/>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",position:"relative",zIndex:2}}>
                   <div>
                     <div style={{fontSize:11,opacity:0.85,letterSpacing:"0.05em"}}>הטיול האחרון שלי</div>
                     <div style={{fontSize:24,fontWeight:800,marginTop:6,lineHeight:1.1,letterSpacing:"-0.01em"}}>{t.name}</div>
@@ -1166,7 +1189,7 @@ export default function App(){
                     <Plane size={20} color="#fff"/>
                   </div>
                 </div>
-                {days&&days>0&&<div style={{marginTop:14,display:"flex",gap:3}}>
+                {days&&days>0&&<div style={{marginTop:14,display:"flex",gap:3,position:"relative",zIndex:2}}>
                   {Array.from({length:Math.min(total,20)}).map((_,i)=>(
                     <div key={i} style={{flex:1,height:4,borderRadius:2,background:i<done?"#fff":"rgba(255,255,255,0.28)"}}/>
                   ))}
@@ -1230,8 +1253,9 @@ export default function App(){
           return(
             <div key={t.id} onClick={()=>{setActiveTrip(t.id);setScreen("trip");setTab("entries");setSub(null)}}
               style={{marginBottom:14,cursor:"pointer",animation:`fadeUp .4s ease ${ti*0.06}s both`,borderRadius:24,overflow:"hidden",border:"1px solid var(--border)"}}>
-              <div style={{background:getCountryGrad(t.country),padding:"20px 20px 28px",position:"relative",overflow:"hidden"}}>
-                <div style={{position:"absolute",top:0,left:0,right:0,bottom:0,background:"linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,0.5))"}}/>
+              <div style={{background:getCountryGrad(t.country),padding:"20px 20px 28px",position:"relative",overflow:"hidden",minHeight:120}}>
+                {countryImgs[t.country]&&<div style={{position:"absolute",inset:0,backgroundImage:`url("${countryImgs[t.country]}")`,backgroundSize:"cover",backgroundPosition:"center"}}/>}
+                <div style={{position:"absolute",top:0,left:0,right:0,bottom:0,background:countryImgs[t.country]?"linear-gradient(180deg,rgba(0,0,0,0.35),rgba(0,0,0,0.65))":"linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,0.5))"}}/>
                 <div style={{position:"relative",zIndex:1,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                   <div>
                     <div style={{fontSize:40,lineHeight:1,marginBottom:6}}>{gF(t.country)}</div>
