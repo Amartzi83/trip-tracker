@@ -130,6 +130,16 @@ const COUNTRIES=[
   {en:"Algeria",he:"אלג'יריה",iso:"DZ"},{en:"Zimbabwe",he:"זימבבואה",iso:"ZW"},
 ];
 const COUNTRY_ISO=Object.fromEntries([...COUNTRIES.map(c=>[c.en,c.iso]),...COUNTRIES.map(c=>[c.he,c.iso])]);
+// aliases for how geocoders / lists name some countries
+Object.assign(COUNTRY_ISO,{"United States":"US","United Kingdom":"GB","Czech Republic":"CZ","Czechia":"CZ","South Korea":"KR","UAE":"AE","United Arab Emirates":"AE"});
+// continent per ISO (for sorting the Pin Traveler list by continent)
+const CONTINENT_OF={IL:"Asia",TH:"Asia",CN:"Asia",IN:"Asia",JP:"Asia",KR:"Asia",VN:"Asia",ID:"Asia",MY:"Asia",PH:"Asia",SG:"Asia",KH:"Asia",MM:"Asia",NP:"Asia",LK:"Asia",BD:"Asia",PK:"Asia",AE:"Asia",SA:"Asia",JO:"Asia",LB:"Asia",QA:"Asia",KW:"Asia",BH:"Asia",OM:"Asia",GE:"Asia",AM:"Asia",AZ:"Asia",KZ:"Asia",UZ:"Asia",MN:"Asia",TW:"Asia",TR:"Asia",SY:"Asia",IQ:"Asia",IR:"Asia",PS:"Asia",YE:"Asia",
+  AT:"Europe",GR:"Europe",IT:"Europe",ES:"Europe",FR:"Europe",DE:"Europe",PT:"Europe",GB:"Europe",RO:"Europe",BG:"Europe",HR:"Europe",HU:"Europe",PL:"Europe",CZ:"Europe",CH:"Europe",NL:"Europe",BE:"Europe",SE:"Europe",NO:"Europe",DK:"Europe",FI:"Europe",IS:"Europe",IE:"Europe",MT:"Europe",CY:"Europe",RS:"Europe",ME:"Europe",AL:"Europe",SI:"Europe",SK:"Europe",EE:"Europe",LV:"Europe",LT:"Europe",UA:"Europe",RU:"Europe",XK:"Europe",MK:"Europe",BA:"Europe",LU:"Europe",MD:"Europe",BY:"Europe",
+  US:"North America",CA:"North America",MX:"North America",CU:"North America",PA:"North America",
+  BR:"South America",AR:"South America",CO:"South America",PE:"South America",CL:"South America",BO:"South America",EC:"South America",VE:"South America",UY:"South America",
+  EG:"Africa",MA:"Africa",TN:"Africa",ZA:"Africa",KE:"Africa",ET:"Africa",TZ:"Africa",GH:"Africa",NG:"Africa",LY:"Africa",DZ:"Africa",ZW:"Africa",
+  AU:"Oceania",NZ:"Oceania"};
+const CONTINENT_ORDER=["Europe","Asia","North America","South America","Africa","Oceania","Other"];
 const HE2EN=Object.fromEntries(COUNTRIES.map(c=>[c.he,c.en])); // Hebrew country name → English (for image search)
 // Key used to look up / cache a trip's scenery photo: its country, or its name if no country set.
 const tripImgKey=(t)=>((t&&t.country&&t.country.trim())||(t&&t.name&&t.name.trim())||"");
@@ -1542,7 +1552,11 @@ export default function App(){
     const isoFor=(name)=>COUNTRY_ISO[(name||"").trim()]||"";
     const STATS=[{id:"visited",l:"Destinations",v:visited.length},{id:"countries",l:"Countries",v:uniqCountries.length},{id:"wishlist",l:"Wishlisted",v:wish.length}];
     const placeMatch=p=>!q||(((p.name||"")+" "+(p.country||"")).toLowerCase().includes(q));
-    const grouped=(list)=>{const g={};list.forEach(p=>{const c=(p.country||"ללא מדינה").trim();(g[c]=g[c]||[]).push(p);});return Object.keys(g).sort().map(c=>({country:c,iso:isoFor(c),items:g[c].sort((a,b)=>(a.name||"").localeCompare(b.name||""))}));};
+    const CONT_HE={Europe:"אירופה",Asia:"אסיה","North America":"צפון אמריקה","South America":"דרום אמריקה",Africa:"אפריקה",Oceania:"אוקיאניה",Other:"אחר"};
+    const contOf=(c,iso)=>(c&&c.continent)||CONTINENT_OF[iso]||"Other";
+    const grouped=(list)=>{const g={};list.forEach(p=>{const c=(p.country||"ללא מדינה").trim();(g[c]=g[c]||[]).push(p);});
+      return Object.keys(g).map(c=>{const iso=isoFor(c);return{country:c,iso,continent:contOf(g[c][0],iso),items:g[c].sort((a,b)=>(a.name||"").localeCompare(b.name||""))};})
+        .sort((a,b)=>{const oi=CONTINENT_ORDER.indexOf(a.continent),oj=CONTINENT_ORDER.indexOf(b.continent);return (oi<0?99:oi)-(oj<0?99:oj)||a.country.localeCompare(b.country);});};
     const groups=grouped((pinTab==="wishlist"?wish:visited).filter(placeMatch));
     const countryRows=uniqCountries.filter(c=>!q||c.toLowerCase().includes(q)).map(c=>({country:c,iso:isoFor(c),count:visited.filter(p=>(p.country||"").trim()===c).length})).sort((a,b)=>b.count-a.count);
     const empty=pinTab==="countries"?countryRows.length===0:groups.length===0;
@@ -1599,7 +1613,9 @@ export default function App(){
               </div>))}
             </div>
             :<div style={{display:"flex",flexDirection:"column",gap:10}}>
-              {groups.map(g=>(<div key={g.country} style={{...C,padding:"4px 6px 6px"}}>
+              {groups.map((g,gi)=>{const showCont=gi===0||groups[gi-1].continent!==g.continent;return(<div key={g.country}>
+                {showCont&&<div style={{fontSize:11,fontWeight:800,color:"#E63946",letterSpacing:"1.5px",margin:gi?"10px 4px 8px":"0 4px 8px",textTransform:"uppercase"}}>{CONT_HE[g.continent]||g.continent}</div>}
+                <div style={{...C,padding:"4px 6px 6px"}}>
                 <div style={{display:"flex",alignItems:"center",gap:10,padding:"9px 10px",borderBottom:"1px solid var(--border)"}}>
                   {g.iso&&<FlagImg iso={g.iso} style={{width:30,height:30,borderRadius:"50%",objectFit:"cover",flexShrink:0,boxShadow:"0 1px 4px rgba(0,0,0,.2)"}}/>}
                   <span style={{fontWeight:800,fontSize:15}}>{g.country}</span>
@@ -1613,7 +1629,8 @@ export default function App(){
                   </div>
                   <button onClick={()=>delPin(p.id)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--text2)",opacity:.55,padding:4,display:"flex"}}><X size={15}/></button>
                 </div>))}
-              </div>))}
+                </div>
+              </div>);})}
             </div>}
       </div>
       <button onClick={()=>{setPinAdding(a=>!a);setPinQuery("");setPinResults([]);}} title="הוסף יעד" style={{position:"fixed",right:20,bottom:24,width:56,height:56,borderRadius:"50%",border:"none",background:pinAdding?"#636e72":"linear-gradient(135deg,#E63946,#FF6B81)",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",boxShadow:"0 6px 20px rgba(230,57,70,.45)",zIndex:50,transition:"transform .15s",transform:pinAdding?"rotate(45deg)":"none"}}><Plus size={28} strokeWidth={2.5}/></button>
