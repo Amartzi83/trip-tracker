@@ -2073,7 +2073,7 @@ export default function App(){
         <h2 style={{fontSize:22,fontWeight:800,margin:"16px 0 24px",display:"flex",alignItems:"center",gap:8}}><Download size={20} style={{color:"var(--accent)"}}/>Export</h2>
         <div style={{...C,marginBottom:16}}>
           <button style={{...B1,display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:10}} onClick={dlCSV}><Download size={18}/>הורד קובץ CSV</button>
-          <p style={{fontSize:11,color:"var(--text2)",marginTop:4,textAlign:"center"}}>כולל הוצאות, נקודות ביקור, קניות וציוד · נפתח ב-Excel / Google Sheets</p>
+          <p style={{fontSize:11,color:"var(--text2)",marginTop:4,textAlign:"center"}}>כולל הוצאות, מסלול, נקודות ביקור, קניות וציוד · נפתח ב-Excel / Google Sheets</p>
         </div>
         <div style={{...C}}>
           <label style={L}>Preview</label>
