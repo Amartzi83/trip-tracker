@@ -2259,11 +2259,15 @@ export default function App(){
               const sl=isF?"המראה":isH?"צ׳ק-אין":isCarT?"איסוף":"התחלה";
               const el=isF?"נחיתה":isH?"צ׳ק-אאוט":isCarT?"החזרה":"סיום";
               const hasStart=s.startDate||s.startTime, hasEnd=s.endDate||s.endTime;
-              if(!hasStart&&!hasEnd)return null;
+              // flights/hotels/cars/transport render their end as a SEPARATE timeline row,
+              // so don't repeat it here; other types show it inline.
+              const ownEndRow=["flight","hotel","car","transport"].includes(s.type);
+              const showEnd=hasEnd&&!ownEndRow;
+              if(!hasStart&&!showEnd)return null;
               const row=(lbl,d,t)=>(<div><span style={{color:"var(--text2)"}}>{lbl}: </span><b style={{color:"var(--text)"}}>{fd(d)}{(fd(d)&&t)?" · ":""}{t||""}</b></div>);
               return(<div style={{fontSize:11.5,marginTop:5,lineHeight:1.75}}>
                 {hasStart&&row(sl,s.startDate,s.startTime)}
-                {hasEnd&&row(el,s.endDate||s.startDate,s.endTime)}
+                {showEnd&&row(el,s.endDate||s.startDate,s.endTime)}
               </div>);})()}
             {s.confirmation&&<div style={{fontSize:11,color:"var(--text2)",marginTop:3}}>אישור: <b style={{color:"var(--text)"}}>{s.confirmation}</b></div>}
             {s.seat&&<div style={{fontSize:11,color:"var(--text2)"}}>מושב: {s.seat}</div>}
