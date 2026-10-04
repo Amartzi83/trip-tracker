@@ -2259,9 +2259,10 @@ export default function App(){
               const sl=isF?"המראה":isH?"צ׳ק-אין":isCarT?"איסוף":"התחלה";
               const el=isF?"נחיתה":isH?"צ׳ק-אאוט":isCarT?"החזרה":"סיום";
               const hasStart=s.startDate||s.startTime, hasEnd=s.endDate||s.endTime;
-              // flights/hotels/cars/transport render their end as a SEPARATE timeline row,
-              // so don't repeat it here; other types show it inline.
-              const ownEndRow=["flight","hotel","car","transport"].includes(s.type);
+              // hotels/cars/transport render their end as a SEPARATE timeline row, so don't
+              // repeat it on the start card. Flights keep the FULL details (incl. landing)
+              // on the departure card, in addition to their separate landing row.
+              const ownEndRow=["hotel","car","transport"].includes(s.type);
               const showEnd=hasEnd&&!ownEndRow;
               if(!hasStart&&!showEnd)return null;
               const row=(lbl,d,t)=>(<div><span style={{color:"var(--text2)"}}>{lbl}: </span><b style={{color:"var(--text)"}}>{fd(d)}{(fd(d)&&t)?" · ":""}{t||""}</b></div>);
