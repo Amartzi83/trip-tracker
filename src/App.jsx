@@ -264,7 +264,6 @@ export default function App(){
   const personalJson=useRef("");                     // last personal {trips,userName} persisted/loaded (echo guard)
   const sharedJson=useRef({});                       // tripId -> last shared-trip JSON persisted/loaded (echo guard)
   const cloudReady=useRef(false);                    // true after the first cloud snapshot — blocks saving stale local data over the cloud
-  const backupDoneRef=useRef("");                    // date of the daily snapshot already attempted this session
   const[backupsList,setBackupsList]=useState([]);    // cloud auto-backup snapshots (for the restore screen)
   const[backupsLoading,setBackupsLoading]=useState(false);
   const[shareInput,setShareInput]=useState("");      // email being invited to a trip
@@ -506,18 +505,17 @@ export default function App(){
     },1200);
   },[trips,userName,geminiKey,authUser,emailVerified]);
 
-  // ── Firebase: daily cloud snapshot (safety net). Once per day it stores the FULL
-  //    set of trips — personal AND shared — so every list (expenses, itinerary,
-  //    visits, shopping, packing) is captured, not just the personal user doc. ──
+  // ── Firebase: cloud snapshot (safety net). Captures the FULL set of trips —
+  //    personal AND shared — so every list (expenses, itinerary, visits, shopping,
+  //    packing) is covered. ensureDailyBackup only actually writes when the data
+  //    CHANGED since the last snapshot, so idle sessions create no redundant backups.
+  //    Debounced 4s so bursts of edits (and late-arriving shared trips) settle first. ──
   useEffect(()=>{
     if(!firebaseReady||!authUser||!emailVerified||!cloudReady.current)return;
-    const today=new Date().toISOString().slice(0,10);
-    if(!trips.length||backupDoneRef.current===today)return;
-    // debounce 4s so both the personal and shared watches have settled before we
-    // snapshot — otherwise a shared trip arriving late could miss today's backup.
+    if(!trips.length)return;
     const id=setTimeout(()=>{
-      backupDoneRef.current=today;
-      ensureDailyBackup(authUser.uid,today,{trips:trips.map(stripFlag),userName}).catch(()=>{backupDoneRef.current=null;});
+      const today=new Date().toISOString().slice(0,10);
+      ensureDailyBackup(authUser.uid,today,{trips:trips.map(stripFlag),userName}).catch(()=>{});
     },4000);
     return ()=>clearTimeout(id);
   },[trips,userName,authUser,emailVerified]);

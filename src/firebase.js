@@ -165,14 +165,26 @@ export async function deleteSharedTrip(tripId) {
 // Each doc: { trips, userName, createdAt }. Private (same rules as the user doc).
 function backupCol(uid) { return collection(db, "users", uid, "backups"); }
 
-// Create today's snapshot only if it doesn't exist yet (keeps the first state of the day),
-// then prune to the newest ~20 days. Returns true if a snapshot was written.
+// Order-insensitive serializer so two snapshots compare equal regardless of how
+// Firestore happens to order object keys on read.
+function stableStr(v) {
+  if (v === null || typeof v !== "object") return JSON.stringify(v);
+  if (Array.isArray(v)) return "[" + v.map(stableStr).join(",") + "]";
+  return "{" + Object.keys(v).sort().map((k) => JSON.stringify(k) + ":" + stableStr(v[k])).join(",") + "}";
+}
+
+// Snapshot the trips ONLY IF they changed since the most recent backup — no point
+// storing an identical copy when nothing was edited. When they did change, write/update
+// today's snapshot ({YYYY-MM-DD}) and prune to the newest ~20 days.
+// Returns true if a snapshot was written, false if skipped (no change).
 export async function ensureDailyBackup(uid, id, data) {
   if (!db) return false;
-  const ref = doc(db, "users", uid, "backups", id);
-  const snap = await getDoc(ref);
-  if (snap.exists()) return false;
-  await setDoc(ref, { ...data, createdAt: Date.now() });
+  const all = (await getDocs(backupCol(uid))).docs;
+  // most recent existing backup, by createdAt
+  let latest = null, latestAt = -1;
+  all.forEach((d) => { const dd = d.data(); const at = dd.createdAt || 0; if (at > latestAt) { latestAt = at; latest = dd; } });
+  if (latest && stableStr(latest.trips) === stableStr(data.trips)) return false; // nothing changed → skip
+  await setDoc(doc(db, "users", uid, "backups", id), { ...data, createdAt: Date.now() });
   try {
     const ids = (await getDocs(backupCol(uid))).docs.map((d) => d.id).sort(); // dates → oldest first
     const extra = ids.length - 20;
