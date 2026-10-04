@@ -193,7 +193,9 @@ export async function ensureDailyBackup(uid, id, data) {
   // most recent existing backup, by createdAt
   let latest = null, latestAt = -1;
   all.forEach((d) => { const dd = d.data(); const at = dd.createdAt || 0; if (at > latestAt) { latestAt = at; latest = dd; } });
-  if (latest && tripsFingerprint(latest.trips) === tripsFingerprint(data.trips)) return false; // nothing changed → skip
+  // compare both trips and pins so a change to either triggers a snapshot
+  const fp = (d) => tripsFingerprint(d && d.trips) + "|P" + tripsFingerprint((d && d.pins) || []);
+  if (latest && fp(latest) === fp(data)) return false; // nothing changed → skip
   await setDoc(doc(db, "users", uid, "backups", id), { ...data, createdAt: Date.now() });
   try {
     const ids = (await getDocs(backupCol(uid))).docs.map((d) => d.id).sort(); // dates → oldest first

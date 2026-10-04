@@ -149,6 +149,17 @@ function isoToFlag(iso){if(!iso||iso.length!==2)return"🌍";return String.fromC
 const LANGS=[{code:"en",name:"English",flag:"🇬🇧"},{code:"he",name:"Hebrew",flag:"🇮🇱"},{code:"th",name:"Thai",flag:"🇹🇭"},{code:"es",name:"Spanish",flag:"🇪🇸"},{code:"fr",name:"French",flag:"🇫🇷"},{code:"de",name:"German",flag:"🇩🇪"},{code:"it",name:"Italian",flag:"🇮🇹"},{code:"pt",name:"Portuguese",flag:"🇵🇹"},{code:"ja",name:"Japanese",flag:"🇯🇵"},{code:"zh",name:"Chinese",flag:"🇨🇳"},{code:"ko",name:"Korean",flag:"🇰🇷"},{code:"ar",name:"Arabic",flag:"🇸🇦"},{code:"tr",name:"Turkish",flag:"🇹🇷"},{code:"ru",name:"Russian",flag:"🇷🇺"},{code:"hi",name:"Hindi",flag:"🇮🇳"},{code:"vi",name:"Vietnamese",flag:"🇻🇳"},{code:"el",name:"Greek",flag:"🇬🇷"},{code:"nl",name:"Dutch",flag:"🇳🇱"},{code:"ro",name:"Romanian",flag:"🇷🇴"}];
 const PHRASES=["How much does this cost?","Where is the bathroom?","Can I have the bill?","Thank you very much","Do you speak English?","I need help","Where is the nearest hospital?","How do I get to the airport?","I have a reservation","One ticket please","Can you recommend a restaurant?","I'm allergic to...","No spicy please","Water please","Can I pay by card?","I'm lost","Call the police","Where is the bus station?","How far is it?","Good morning"];
 
+// Lazily load Leaflet (map library) from CDN only when the Pin Traveler map is opened.
+let leafletPromise=null;
+function ensureLeaflet(){
+  if(window.L)return Promise.resolve(window.L);
+  if(leafletPromise)return leafletPromise;
+  leafletPromise=new Promise((resolve,reject)=>{
+    if(!document.getElementById('leaflet-css')){const l=document.createElement('link');l.id='leaflet-css';l.rel='stylesheet';l.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(l);}
+    const s=document.createElement('script');s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';s.onload=()=>resolve(window.L);s.onerror=reject;document.head.appendChild(s);
+  });
+  return leafletPromise;
+}
 function gid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function dBtw(a,b){return Math.max(1,Math.round((new Date(b)-new Date(a))/864e5))}
 function gF(c){return isoToFlag(COUNTRY_ISO[c])||"🌍"}
@@ -323,6 +334,15 @@ export default function App(){
   const[homeRateFrom,setHomeRateFrom]=useState(()=>localStorage.getItem('tt_home_rate_from')||'USD');
   const[homeRateTo,setHomeRateTo]=useState(()=>localStorage.getItem('tt_home_rate_to')||'THB');
   const[weatherPicker,setWeatherPicker]=useState(false);
+  // Pin Traveler: places visited / wishlist, shown on an interactive map.
+  const[pins,setPins]=useState(()=>{try{return JSON.parse(localStorage.getItem('tt_pins')||'[]')}catch{return[]}});
+  const[pinTab,setPinTab]=useState("visited");   // "visited" | "countries" | "wishlist"
+  const[pinSearch,setPinSearch]=useState("");
+  const[pinAdding,setPinAdding]=useState(false);
+  const[pinQuery,setPinQuery]=useState("");
+  const[pinResults,setPinResults]=useState([]);
+  const[pinSearching,setPinSearching]=useState(false);
+  const mapRef=useRef(null);const mapObj=useRef(null);const markersLayer=useRef(null);
   const[ratePicker,setRatePicker]=useState(false);
   const[citySearch,setCitySearch]=useState("");
   const[cityResults,setCityResults]=useState([]);
@@ -465,16 +485,17 @@ export default function App(){
     // Personal trips (users/{uid}) — keep any shared trips already in state.
     const unsubUser=watchUserData(authUser.uid,data=>{
       if(data&&Array.isArray(data.trips)){
-        personalJson.current=JSON.stringify({trips:data.trips,userName:(typeof data.userName==="string"?data.userName:""),geminiKey:data.geminiKey||""});
+        personalJson.current=JSON.stringify({trips:data.trips,userName:(typeof data.userName==="string"?data.userName:""),geminiKey:data.geminiKey||"",pins:data.pins||[]});
         setTrips(cur=>[...data.trips.map(t=>({...t,isShared:false})),...cur.filter(t=>t.isShared)]);
         if(typeof data.userName==="string")setUserName(data.userName);
         if(typeof data.geminiKey==="string"&&data.geminiKey)setGeminiKey(data.geminiKey);
+        if(Array.isArray(data.pins))setPins(data.pins);
         setCloudStatus("saved");
       }else if(!seeded){
         seeded=true;                            // no cloud doc → upload this device's personal data
         const personal=trips.filter(t=>!t.isShared).map(stripFlag);
-        saveUserData(authUser.uid,{trips:personal,userName,geminiKey}).catch(()=>{});
-        personalJson.current=JSON.stringify({trips:personal,userName,geminiKey});
+        saveUserData(authUser.uid,{trips:personal,userName,geminiKey,pins}).catch(()=>{});
+        personalJson.current=JSON.stringify({trips:personal,userName,geminiKey,pins});
       }
       cloudReady.current=true;                  // cloud state now known — saving is safe
     });
@@ -505,7 +526,7 @@ export default function App(){
     if(!cloudReady.current)return;              // never save before the cloud has loaded (prevents overwriting cloud with stale local data)
     const personal=trips.filter(t=>!t.isShared).map(stripFlag);
     const shared=trips.filter(t=>t.isShared);
-    const pj=JSON.stringify({trips:personal,userName,geminiKey});
+    const pj=JSON.stringify({trips:personal,userName,geminiKey,pins});
     const personalChanged=pj!==personalJson.current;
     const changedShared=shared.filter(t=>JSON.stringify(stripFlag(t))!==sharedJson.current[t.id]);
     if(!personalChanged&&!changedShared.length)return;
@@ -514,12 +535,12 @@ export default function App(){
     if(cloudSaveTimer.current)clearTimeout(cloudSaveTimer.current);
     cloudSaveTimer.current=setTimeout(async()=>{
       try{
-        if(personalChanged){await saveUserData(authUser.uid,{trips:personal,userName,geminiKey});personalJson.current=pj;}
+        if(personalChanged){await saveUserData(authUser.uid,{trips:personal,userName,geminiKey,pins});personalJson.current=pj;}
         for(const t of changedShared){const clean={...stripFlag(t),lastEditedBy:myEmail};await saveSharedTrip(clean);sharedJson.current[t.id]=JSON.stringify(clean);}
         setCloudStatus("saved");
       }catch{setCloudStatus("error");}
     },1200);
-  },[trips,userName,geminiKey,authUser,emailVerified]);
+  },[trips,userName,geminiKey,pins,authUser,emailVerified]);
 
   // ── Firebase: cloud snapshot (safety net). Captures the FULL set of trips —
   //    personal AND shared — so every list (expenses, itinerary, visits, shopping,
@@ -531,10 +552,10 @@ export default function App(){
     if(!trips.length)return;
     const id=setTimeout(()=>{
       const today=new Date().toISOString().slice(0,10);
-      ensureDailyBackup(authUser.uid,today,{trips:trips.map(stripFlag),userName}).catch(()=>{});
+      ensureDailyBackup(authUser.uid,today,{trips:trips.map(stripFlag),userName,pins}).catch(()=>{});
     },4000);
     return ()=>clearTimeout(id);
-  },[trips,userName,authUser,emailVerified]);
+  },[trips,pins,userName,authUser,emailVerified]);
 
   // ── Firebase: migrate any legacy inline file data to the files subcollection.
   //    Older docs embedded the base64 `data` inside trips; move it out so the
@@ -609,6 +630,22 @@ export default function App(){
 
   useEffect(()=>{try{localStorage.setItem('tt_extra_currs',JSON.stringify(extraCurrs))}catch{}},[extraCurrs]);
   useEffect(()=>{try{localStorage.setItem('tt_gemini_key',geminiKey)}catch{}},[geminiKey]);
+  useEffect(()=>{try{localStorage.setItem('tt_pins',JSON.stringify(pins))}catch{}},[pins]);
+  // Pin Traveler map: init Leaflet when the screen opens, tear it down on leave.
+  useEffect(()=>{
+    if(screen!=="pinTraveler")return;
+    let cancelled=false;
+    ensureLeaflet().then(L=>{
+      if(cancelled||!mapRef.current)return;
+      if(mapObj.current){try{mapObj.current.remove()}catch{}mapObj.current=null;}
+      mapObj.current=L.map(mapRef.current,{attributionControl:false}).setView([20,0],2);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18}).addTo(mapObj.current);
+      markersLayer.current=L.layerGroup().addTo(mapObj.current);
+      setTimeout(()=>{if(mapObj.current&&!cancelled){mapObj.current.invalidateSize();renderPinMarkers(L);}},180);
+    }).catch(()=>{});
+    return ()=>{cancelled=true;if(mapObj.current){try{mapObj.current.remove()}catch{}mapObj.current=null;markersLayer.current=null;}};
+  },[screen]);
+  useEffect(()=>{if(screen==="pinTraveler"&&window.L&&mapObj.current&&markersLayer.current)renderPinMarkers(window.L);},[pins,pinTab,screen]);
   useEffect(()=>{try{if(homeTripId)localStorage.setItem('tt_home_trip',homeTripId);else localStorage.removeItem('tt_home_trip')}catch{}},[homeTripId]);
   // Fetch a representative scenery photo for each trip's country (once per country),
   // from Openverse (free, no key). Cached in localStorage so tiles load instantly after.
@@ -675,6 +712,49 @@ export default function App(){
     setHomeWeather({name:label,lat:res.latitude,lon:res.longitude});
     setWeatherPicker(false);setCitySearch("");setCityResults([]);
   }
+  // ── Pin Traveler: place search (geocoding) + add / remove pins ──
+  async function pinSearchPlaces(q){
+    setPinQuery(q);
+    const query=(q||"").trim();
+    if(query.length<2){setPinResults([]);return;}
+    setPinSearching(true);
+    try{
+      const names=[...new Set([query,CITY_DB.find(c=>c.he.includes(query))?.en].filter(Boolean))];
+      let api=[];
+      for(const nm of names){
+        const r=await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(nm)}&count=6&language=he&format=json`);
+        const d=await r.json();if(Array.isArray(d?.results))api=api.concat(d.results);
+      }
+      const out=[];
+      for(const a of api){if(!out.some(m=>Math.abs(m.latitude-a.latitude)<0.2&&Math.abs(m.longitude-a.longitude)<0.2))out.push(a);}
+      setPinResults(out.slice(0,8));
+    }catch{}
+    setPinSearching(false);
+  }
+  function addPin(res){
+    const dup=pins.some(p=>Math.abs(p.lat-res.latitude)<0.05&&Math.abs(p.lon-res.longitude)<0.05&&(p.type==="wishlist")===(pinTab==="wishlist"));
+    if(dup){show("היעד כבר ברשימה");setPinAdding(false);setPinQuery("");setPinResults([]);return;}
+    const p={id:gid(),name:res.name,country:res.country||"",admin1:res.admin1||"",lat:res.latitude,lon:res.longitude,type:pinTab==="wishlist"?"wishlist":"visited",date:new Date().toISOString().slice(0,10)};
+    setPins(cur=>[...cur,p]);
+    setPinAdding(false);setPinQuery("");setPinResults([]);
+    show(pinTab==="wishlist"?"✨ נוסף ל-Wishlist":"📍 היעד נוסף למפה!");
+  }
+  function delPin(id){setPins(cur=>cur.filter(p=>p.id!==id));}
+  // Draw the markers for the currently selected tab onto the map.
+  function renderPinMarkers(L){
+    if(!markersLayer.current)return;
+    markersLayer.current.clearLayers();
+    const shown=pins.filter(p=>pinTab==="wishlist"?p.type==="wishlist":p.type!=="wishlist");
+    const bounds=[];
+    shown.forEach(p=>{
+      if(typeof p.lat!=="number"||typeof p.lon!=="number")return;
+      const color=p.type==="wishlist"?"#f0932b":"#E63946";
+      const icon=L.divIcon({className:"",html:`<div style="width:20px;height:20px;border-radius:50% 50% 50% 0;background:${color};transform:rotate(-45deg);border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.45)"></div>`,iconSize:[20,20],iconAnchor:[10,20]});
+      L.marker([p.lat,p.lon],{icon}).bindPopup(`<b>${p.name}</b>${p.country?"<br>"+p.country:""}`).addTo(markersLayer.current);
+      bounds.push([p.lat,p.lon]);
+    });
+    if(bounds.length){try{mapObj.current.fitBounds(bounds,{padding:[40,40],maxZoom:6});}catch{}}
+  }
   function speak(text,lang){
     if(!text||!window.speechSynthesis)return;
     const lm={en:"en-US",he:"he-IL",th:"th-TH",es:"es-ES",fr:"fr-FR",de:"de-DE",it:"it-IT",pt:"pt-PT",ja:"ja-JP",zh:"zh-CN",ko:"ko-KR",ar:"ar-SA",tr:"tr-TR",ru:"ru-RU",hi:"hi-IN",vi:"vi-VN",el:"el-GR",nl:"nl-NL",ro:"ro-RO"};
@@ -692,7 +772,7 @@ export default function App(){
   // ── Local file backup (no token needed — survives a browser reset) ──
   function downloadBackup(){
     try{
-      const payload={app:"trip-tracker",version:2,exportedAt:new Date().toISOString(),updatedAt:Date.now(),userName,trips,extraCurrs};
+      const payload={app:"trip-tracker",version:2,exportedAt:new Date().toISOString(),updatedAt:Date.now(),userName,trips,extraCurrs,pins};
       const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
       const url=URL.createObjectURL(blob);
       const a=document.createElement("a");
@@ -712,6 +792,7 @@ export default function App(){
         setTrips(cur=>{const m={};cur.forEach(t=>{m[t.id]=t});arr.forEach(t=>{m[t.id]={...t}});return Object.values(m);}); // merge, never wipe
         if(d&&d.userName)setUserName(d.userName);
         if(d&&Array.isArray(d.extraCurrs))setExtraCurrs(d.extraCurrs);
+        if(d&&Array.isArray(d.pins))setPins(cur=>{const m={};cur.forEach(p=>{m[p.id]=p});d.pins.forEach(p=>{m[p.id]={...p}});return Object.values(m);}); // merge pins
         show("↺ שוחזר מקובץ הגיבוי!");
       }catch{show("שגיאה בקריאת הקובץ");}
     };
@@ -1012,6 +1093,7 @@ export default function App(){
         {id:"money",label:"כספים המרה ועמלות",sub:"המרה · שערים · עמלות",Icon:Wallet,color:"#f0932b",fn:()=>setScreen("moneyScreen")},
       ]},
       {title:"אפליקציות שימושיות",items:[
+        {id:"pins",label:"Pin Traveler",sub:"מפת היעדים שלי",Icon:MapPin,color:"#E63946",badge:pins.length||null,fn:()=>setScreen("pinTraveler")},
         {id:"disc",label:"גלה יעדים",sub:"חקר את היעד שלך",Icon:Globe2,color:"#E17055",fn:()=>setScreen("discoverScreen")},
         {id:"events",label:"אירועים וחגים",sub:"לוח אירועים",Icon:CalendarDays,color:"#e84393",fn:()=>setScreen("eventsScreen")},
         {id:"links",label:"קישורים שימושיים",sub:"כל כלי הטיול",Icon:Link2,color:"#6c5ce7",fn:()=>setScreen("linksScreen")},
@@ -1446,6 +1528,93 @@ export default function App(){
           <div style={{display:"flex",flexDirection:"column",gap:5}}>{PHRASES.map((p,i)=><button key={i} onClick={()=>{setTrText(p);doTranslate(p)}} style={{textAlign:"left",padding:"10px 14px",borderRadius:12,border:"1px solid var(--border)",background:"var(--card)",color:"var(--text)",cursor:"pointer",fontSize:12,fontFamily:"Inter",fontWeight:500}}>{p}</button>)}</div>
         </div>
       </div>
+    </div>);
+  }
+
+  /* PIN TRAVELER — interactive map of places visited / wishlist */
+  if(screen==="pinTraveler"){
+    const visited=pins.filter(p=>p.type!=="wishlist");
+    const wish=pins.filter(p=>p.type==="wishlist");
+    const uniqCountries=[...new Set(visited.map(p=>(p.country||"").trim()).filter(Boolean))].sort();
+    const q=pinSearch.trim().toLowerCase();
+    const isoFor=(name)=>COUNTRY_ISO[(name||"").trim()]||"";
+    const STATS=[{id:"visited",l:"Destinations",v:visited.length},{id:"countries",l:"Countries",v:uniqCountries.length},{id:"wishlist",l:"Wishlisted",v:wish.length}];
+    const placeMatch=p=>!q||(((p.name||"")+" "+(p.country||"")).toLowerCase().includes(q));
+    const grouped=(list)=>{const g={};list.forEach(p=>{const c=(p.country||"ללא מדינה").trim();(g[c]=g[c]||[]).push(p);});return Object.keys(g).sort().map(c=>({country:c,iso:isoFor(c),items:g[c].sort((a,b)=>(a.name||"").localeCompare(b.name||""))}));};
+    const groups=grouped((pinTab==="wishlist"?wish:visited).filter(placeMatch));
+    const countryRows=uniqCountries.filter(c=>!q||c.toLowerCase().includes(q)).map(c=>({country:c,iso:isoFor(c),count:visited.filter(p=>(p.country||"").trim()===c).length})).sort((a,b)=>b.count-a.count);
+    const empty=pinTab==="countries"?countryRows.length===0:groups.length===0;
+    const pinDot=(type)=><span style={{width:16,height:16,borderRadius:"50% 50% 50% 0",background:type==="wishlist"?"#f0932b":"#E63946",transform:"rotate(-45deg)",border:"2px solid var(--card)",flexShrink:0,boxShadow:"0 1px 3px rgba(0,0,0,.3)"}}/>;
+    return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"16px 16px 100px",position:"relative"}}><style>{css}</style>{toastEl}
+      <div style={{maxWidth:480,margin:"0 auto"}}>
+        <button onClick={()=>setScreen("home")} style={BK}><ChevronLeft size={18}/>בית</button>
+        <h2 style={{fontSize:24,fontWeight:900,letterSpacing:"-0.5px",display:"flex",alignItems:"center",gap:10,margin:"14px 0 12px"}}><MapPin size={24} style={{color:"#E63946"}}/>Pin Traveler</h2>
+        {/* Stat header — Destinations · Countries · Wishlisted (also the view selector) */}
+        <div style={{...C,display:"flex",padding:"4px 2px",marginBottom:14}}>
+          {STATS.map((s,i)=>{const on=pinTab===s.id;return(
+            <button key={s.id} onClick={()=>setPinTab(s.id)} style={{flex:1,background:"none",border:"none",borderInlineStart:i?"1px solid var(--border)":"none",cursor:"pointer",padding:"10px 4px",fontFamily:"Heebo,system-ui"}}>
+              <div style={{fontSize:11.5,fontWeight:700,color:on?"#E63946":"var(--text2)",letterSpacing:".3px"}}>{s.l}</div>
+              <div style={{fontSize:26,fontWeight:900,color:on?"#E63946":"var(--text)",marginTop:2,lineHeight:1}}>{s.v}</div>
+              <div style={{height:3,borderRadius:2,marginTop:7,background:on?"#E63946":"transparent"}}/>
+            </button>);})}
+        </div>
+        {pinAdding&&<div style={{...C,marginBottom:14,padding:"14px 16px"}}>
+          <div style={{display:"flex",gap:8}}>
+            <input autoFocus style={{...I,flex:1}} placeholder={pinTab==="wishlist"?"לאן תרצה לנסוע?":"איזה מקום ביקרת?"} value={pinQuery} onChange={e=>pinSearchPlaces(e.target.value)}/>
+            <button onClick={()=>{setPinAdding(false);setPinQuery("");setPinResults([]);}} style={{...B2,width:"auto",padding:"0 14px"}}>בטל</button>
+          </div>
+          {pinSearching&&<p style={{fontSize:12,color:"var(--text2)",marginTop:8}}>מחפש…</p>}
+          {pinResults.length>0&&<div style={{marginTop:10,display:"flex",flexDirection:"column",gap:6,maxHeight:230,overflowY:"auto"}}>
+            {pinResults.map((r,i)=>(
+              <button key={i} onClick={()=>addPin(r)} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:12,border:"1px solid var(--border)",background:"var(--bg)",cursor:"pointer",textAlign:"right",fontFamily:"Heebo,system-ui"}}>
+                {isoFor(r.country)&&<FlagImg iso={isoFor(r.country)} style={{width:26,height:"auto",borderRadius:3,flexShrink:0}}/>}
+                <span style={{flex:1,fontSize:13,fontWeight:700}}>{r.name}<span style={{color:"var(--text2)",fontWeight:500,fontSize:12}}>{r.admin1?` · ${r.admin1}`:""}{r.country?` · ${r.country}`:""}</span></span>
+                <Plus size={16} color="#E63946"/>
+              </button>))}
+          </div>}
+        </div>}
+        <div ref={mapRef} style={{height:290,borderRadius:18,overflow:"hidden",border:"1px solid var(--border)",marginBottom:14,background:"var(--card)"}}/>
+        {/* Circular flags of countries visited */}
+        {uniqCountries.length>0&&<div style={{display:"flex",gap:9,overflowX:"auto",padding:"0 2px 12px"}}>
+          {uniqCountries.map(c=>{const iso=isoFor(c);return iso?<FlagImg key={c} iso={iso} style={{width:42,height:42,borderRadius:"50%",objectFit:"cover",flexShrink:0,boxShadow:"0 2px 7px rgba(0,0,0,.28)",border:"2px solid var(--card)"}}/>:null;})}
+        </div>}
+        <div style={{position:"relative",marginBottom:12}}>
+          <input style={{...I,paddingInlineStart:38}} placeholder={pinTab==="countries"?"חפש מדינה…":"חפש מקום…"} value={pinSearch} onChange={e=>setPinSearch(e.target.value)}/>
+          <Compass size={16} style={{position:"absolute",insetInlineStart:12,top:"50%",transform:"translateY(-50%)",color:"var(--text2)",pointerEvents:"none"}}/>
+        </div>
+        {empty
+          ?<div style={{textAlign:"center",padding:"36px 20px",color:"var(--text2)"}}>
+             <div style={{fontSize:46,marginBottom:10}}>🗺️</div>
+             <p style={{fontWeight:700,fontSize:15,color:"var(--text)",marginBottom:4}}>{q?"לא נמצאו תוצאות":pinTab==="wishlist"?"רשימת ה-Wishlist ריקה":pinTab==="countries"?"עדיין אין מדינות":"עדיין לא הוספת מקומות"}</p>
+             {!q&&<p style={{fontSize:13,lineHeight:1.6}}>לחץ על ה-+ למטה כדי להוסיף {pinTab==="wishlist"?"יעד שתרצה לבקר":"מקום שביקרת בו"}</p>}
+           </div>
+          :pinTab==="countries"
+            ?<div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {countryRows.map(r=>(<div key={r.country} style={{...C,padding:"11px 14px",display:"flex",alignItems:"center",gap:11}}>
+                {r.iso&&<FlagImg iso={r.iso} style={{width:38,height:38,borderRadius:"50%",objectFit:"cover",flexShrink:0,boxShadow:"0 1px 5px rgba(0,0,0,.2)"}}/>}
+                <span style={{flex:1,fontSize:15,fontWeight:700}}>{r.country}</span>
+                <span style={{fontSize:12,fontWeight:800,color:"#E63946",background:"rgba(230,57,70,0.1)",borderRadius:8,padding:"3px 10px"}}>{r.count} מקומות</span>
+              </div>))}
+            </div>
+            :<div style={{display:"flex",flexDirection:"column",gap:10}}>
+              {groups.map(g=>(<div key={g.country} style={{...C,padding:"4px 6px 6px"}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,padding:"9px 10px",borderBottom:"1px solid var(--border)"}}>
+                  {g.iso&&<FlagImg iso={g.iso} style={{width:30,height:30,borderRadius:"50%",objectFit:"cover",flexShrink:0,boxShadow:"0 1px 4px rgba(0,0,0,.2)"}}/>}
+                  <span style={{fontWeight:800,fontSize:15}}>{g.country}</span>
+                  <span style={{marginInlineStart:"auto",fontSize:12,fontWeight:700,color:"var(--text2)"}}>{g.items.length}</span>
+                </div>
+                {g.items.map(p=>(<div key={p.id} style={{display:"flex",alignItems:"center",gap:11,padding:"9px 10px"}}>
+                  {pinDot(p.type)}
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:14,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name}</div>
+                    {p.admin1&&<div style={{fontSize:11,color:"var(--text2)"}}>{p.admin1}</div>}
+                  </div>
+                  <button onClick={()=>delPin(p.id)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--text2)",opacity:.55,padding:4,display:"flex"}}><X size={15}/></button>
+                </div>))}
+              </div>))}
+            </div>}
+      </div>
+      <button onClick={()=>{setPinAdding(a=>!a);setPinQuery("");setPinResults([]);}} title="הוסף יעד" style={{position:"fixed",right:20,bottom:24,width:56,height:56,borderRadius:"50%",border:"none",background:pinAdding?"#636e72":"linear-gradient(135deg,#E63946,#FF6B81)",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",boxShadow:"0 6px 20px rgba(230,57,70,.45)",zIndex:50,transition:"transform .15s",transform:pinAdding?"rotate(45deg)":"none"}}><Plus size={28} strokeWidth={2.5}/></button>
     </div>);
   }
 
