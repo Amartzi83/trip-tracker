@@ -173,6 +173,16 @@ function stableStr(v) {
   return "{" + Object.keys(v).sort().map((k) => JSON.stringify(k) + ":" + stableStr(v[k])).join(",") + "}";
 }
 
+// Canonical form of a trips array for CHANGE detection: sort trips by id and drop
+// volatile sync metadata (updatedAt / lastEditedBy on shared trips) and the transient
+// isShared flag, so re-syncs that don't touch user content don't look like edits.
+function tripsFingerprint(trips) {
+  const norm = (trips || []).slice()
+    .sort((a, b) => String(a && a.id).localeCompare(String(b && b.id)))
+    .map((t) => { const { updatedAt, lastEditedBy, isShared, ...rest } = t || {}; return rest; });
+  return stableStr(norm);
+}
+
 // Snapshot the trips ONLY IF they changed since the most recent backup — no point
 // storing an identical copy when nothing was edited. When they did change, write/update
 // today's snapshot ({YYYY-MM-DD}) and prune to the newest ~20 days.
@@ -183,7 +193,7 @@ export async function ensureDailyBackup(uid, id, data) {
   // most recent existing backup, by createdAt
   let latest = null, latestAt = -1;
   all.forEach((d) => { const dd = d.data(); const at = dd.createdAt || 0; if (at > latestAt) { latestAt = at; latest = dd; } });
-  if (latest && stableStr(latest.trips) === stableStr(data.trips)) return false; // nothing changed → skip
+  if (latest && tripsFingerprint(latest.trips) === tripsFingerprint(data.trips)) return false; // nothing changed → skip
   await setDoc(doc(db, "users", uid, "backups", id), { ...data, createdAt: Date.now() });
   try {
     const ids = (await getDocs(backupCol(uid))).docs.map((d) => d.id).sort(); // dates → oldest first
