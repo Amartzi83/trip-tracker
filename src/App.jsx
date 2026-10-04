@@ -513,8 +513,13 @@ export default function App(){
     if(!firebaseReady||!authUser||!emailVerified||!cloudReady.current)return;
     const today=new Date().toISOString().slice(0,10);
     if(!trips.length||backupDoneRef.current===today)return;
-    backupDoneRef.current=today;
-    ensureDailyBackup(authUser.uid,today,{trips:trips.map(stripFlag),userName}).catch(()=>{backupDoneRef.current=null;});
+    // debounce 4s so both the personal and shared watches have settled before we
+    // snapshot — otherwise a shared trip arriving late could miss today's backup.
+    const id=setTimeout(()=>{
+      backupDoneRef.current=today;
+      ensureDailyBackup(authUser.uid,today,{trips:trips.map(stripFlag),userName}).catch(()=>{backupDoneRef.current=null;});
+    },4000);
+    return ()=>clearTimeout(id);
   },[trips,userName,authUser,emailVerified]);
 
   // ── Firebase: migrate any legacy inline file data to the files subcollection.
