@@ -696,7 +696,16 @@ export default function App(){
   const totalDated=useMemo(()=>dated.reduce((s,e)=>s+cv(e.amount,e.currency,trip?.currency||"USD"),0),[dated,trip,rates]);
   const totalUndated=useMemo(()=>undated.reduce((s,e)=>s+cv(e.amount,e.currency,trip?.currency||"USD"),0),[undated,trip,rates]);
   const catBreak=useMemo(()=>{if(!trip)return[];const m={};trip.expenses.forEach(e=>{m[e.category]=(m[e.category]||0)+cv(e.amount,e.currency,trip.currency)});return CATS.filter(c=>m[c.id]).map(c=>({label:c.name,value:m[c.id],color:c.color}))},[trip,rates]);
-  const dailyAvg=useMemo(()=>{if(!dated.length)return 0;const ds=dated.map(e=>e.date);return totalDated/dBtw(ds.reduce((a,b)=>a<b?a:b),ds.reduce((a,b)=>a>b?a:b))},[dated,totalDated]);
+  // Daily average = TOTAL spent ÷ actual trip length (startDate→endDate, same day-count
+  // the trip cards show). Falls back to the span of dated expenses if the trip has no dates.
+  const dailyAvg=useMemo(()=>{
+    if(!trip||!totalSpent)return 0;
+    let days;
+    if(trip.startDate&&trip.endDate)days=dBtw(trip.startDate,trip.endDate);
+    else if(dated.length){const ds=dated.map(e=>e.date);days=dBtw(ds.reduce((a,b)=>a<b?a:b),ds.reduce((a,b)=>a>b?a:b));}
+    else days=1;
+    return totalSpent/days;
+  },[trip,totalSpent,dated]);
 
   // CRUD
   function createTrip(){const n=newTrip.name.trim()||"My Trip";const id=gid();setTrips(p=>[...p,{id,...newTrip,name:n,budget:parseFloat(newTrip.budget)||0,expenses:[]}]);setNewTrip({name:"",country:"",budget:"",currency:"USD",startDate:"",endDate:""});setActiveTrip(id);setScreen("trip");setTab("entries");show("Trip created!")}
