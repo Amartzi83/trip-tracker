@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { firebaseReady, onAuth, signUp, signIn, logOut, resetPassword, resendVerification, reloadUser, loadUserData, watchUserData, saveUserData, saveUserFile, loadUserFile, deleteUserFile, watchSharedTrips, saveSharedTrip, deleteSharedTrip, ensureDailyBackup, listBackups, authErrorText } from "./firebase";
 import { extractItinerary } from "./gemini";
-import { Plane, Plus, ChevronLeft, MoreVertical, ArrowLeftRight, Globe, Receipt, TrendingUp, Coffee, UtensilsCrossed, ShoppingBag, Hotel, Bus, Wine, HeartPulse, Smartphone, Gift, Shield, Shirt, MapPin, Ticket, Camera, Music, Landmark, Palmtree, Eye, Pencil, Download, Share2, Settings, Trash2, UserPlus, Volume2, X, Clock, CreditCard, Wallet, Users, Copy, ExternalLink, ChevronRight, Compass, Utensils, Beer, Baby, ShoppingCart, TreePine, Waves, Gem, Map, Route, DollarSign, Navigation, Globe2, Star, Sun, FileText, Upload, Cloud, CalendarDays, Link2, Wind, Sparkles } from "lucide-react";
+import { Plane, Plus, ChevronLeft, MoreVertical, ArrowLeftRight, Globe, Receipt, TrendingUp, Coffee, UtensilsCrossed, ShoppingBag, Hotel, Bus, Wine, HeartPulse, Smartphone, Gift, Shield, Shirt, MapPin, Ticket, Camera, Music, Landmark, Palmtree, Eye, Pencil, Download, Share2, Settings, Trash2, UserPlus, Volume2, X, Clock, CreditCard, Wallet, Users, Copy, ExternalLink, ChevronRight, Compass, Utensils, Beer, Baby, ShoppingCart, TreePine, Waves, Gem, Map, Route, DollarSign, Navigation, Globe2, Star, Sun, FileText, Upload, Cloud, CalendarDays, Link2, Wind, Sparkles, PlaneTakeoff, PlaneLanding, LogOut } from "lucide-react";
 
 /* ═══════ DATA ═══════ */
 const CATS=[
@@ -2223,11 +2223,22 @@ export default function App(){
     /* ═══ XE ═══ */
     if(tab==="itin"){
       const all=trip.itinerary||[];
-      const dated=all.filter(s=>s.startDate).sort((a,b)=>segStart(a)-segStart(b));
-      const undated=all.filter(s=>!s.startDate);
       const warns=itinWarnings(all);
       const errCount=warns.filter(w=>w.level==="error").length;
-      const byDay={};dated.forEach(s=>{(byDay[s.startDate]=byDay[s.startDate]||[]).push(s);});
+      // Each segment becomes up to two timeline POINTS: a start (departure / check-in /
+      // pickup) and, for flights/hotels/cars/transport, an end (arrival / check-out /
+      // drop-off) placed on its own date — so a red-eye flight's landing shows on the
+      // next day with its own landing icon, and a hotel's check-out gets its own row.
+      const END_TYPES=["flight","hotel","car","transport"];
+      const pointsOf=s=>{const p=[];
+        if(s.startDate||s.startTime)p.push({seg:s,kind:"start",date:s.startDate,time:s.startTime});
+        if((s.endDate||s.endTime)&&END_TYPES.includes(s.type))p.push({seg:s,kind:"end",date:s.endDate||s.startDate,time:s.endTime});
+        if(!p.length)p.push({seg:s,kind:"start",date:s.startDate,time:s.startTime});
+        return p;};
+      const allPts=all.flatMap(pointsOf);
+      const datedPts=allPts.filter(p=>p.date).sort((a,b)=>{const d=a.date.localeCompare(b.date);return d!==0?d:((a.time||"99:99").localeCompare(b.time||"99:99"));});
+      const undatedPts=allPts.filter(p=>!p.date);
+      const byDay={};datedPts.forEach(p=>{(byDay[p.date]=byDay[p.date]||[]).push(p);});
       const days=Object.keys(byDay).sort();
       const fmtDay=d=>{try{return new Date(d+"T00:00:00").toLocaleDateString("he-IL",{weekday:"long",day:"numeric",month:"long"});}catch{return d;}};
       const wc=l=>l==="error"?"#E63946":l==="warn"?"#C77700":"#1E5BD6";
@@ -2259,6 +2270,25 @@ export default function App(){
             {s.location&&<div style={{fontSize:11,color:"var(--text2)",marginTop:3,display:"flex",alignItems:"center",gap:3}}><MapPin size={10}/>{s.location}</div>}
             {s.note&&<div style={{fontSize:11,color:"var(--text2)",marginTop:3,fontStyle:"italic"}}>{s.note}</div>}
           </div>
+        </div>);};
+      // icon for a timeline point: flights get take-off / landing planes, hotels & cars
+      // get a "leave" icon on check-out / drop-off; everything else keeps its type icon.
+      const pointIcon=p=>{const t=p.seg.type;if(t==="flight")return p.kind==="end"?PlaneLanding:PlaneTakeoff;if(p.kind==="end"&&(t==="hotel"||t==="car"))return LogOut;return segType(t).Icon;};
+      // slim card shown on an END point (arrival / check-out / drop-off)
+      const segEndCard=s=>{const lbl=s.type==="flight"?"נחיתה":s.type==="hotel"?"צ׳ק-אאוט":s.type==="car"?"החזרת רכב":"סיום";const sub=s.type==="flight"?(s.to||""):(s.provider||s.location||"");return(
+        <div onClick={()=>openSeg(s)} style={{...C,flex:1,padding:"11px 14px",marginBottom:8,cursor:"pointer",display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>
+          <span style={{fontSize:13.5,fontWeight:800,color:"var(--text)"}}>{lbl}</span>
+          {sub&&<span style={{fontSize:12.5,color:"var(--text2)"}}>· {sub}</span>}
+        </div>);};
+      // one timeline row for a point; showTime=false hides the left time column (undated)
+      const renderRow=(p,showTime)=>{const Ic=pointIcon(p);const col=segType(p.seg.type).color;return(
+        <div key={p.seg.id+"-"+p.kind} style={{display:"flex",gap:10}}>
+          {showTime&&<div style={{width:50,flexShrink:0,textAlign:"left",paddingTop:11}}><div style={{fontSize:13,fontWeight:800,color:"var(--text)"}}>{p.time||"—"}</div></div>}
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0,...(showTime?{}:{marginTop:2})}}>
+            <div style={{width:34,height:34,borderRadius:"50%",background:col,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:`0 3px 10px ${col}55`}}><Ic size={16} color="#fff"/></div>
+            {showTime&&<div style={{flex:1,width:2,background:"var(--border)",minHeight:14}}/>}
+          </div>
+          {p.kind==="end"?segEndCard(p.seg):segCard(p.seg)}
         </div>);};
       return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"16px 16px 100px"}}><style>{css}</style>{toastEl}<div style={{maxWidth:480,margin:"0 auto"}}>
         <h2 style={{fontSize:22,fontWeight:800,marginBottom:16,display:"flex",alignItems:"center",gap:8}}><Route size={22} style={{color:"var(--accent)"}}/>מסלול הטיול</h2>
@@ -2292,7 +2322,7 @@ export default function App(){
           </div>))}
         </div>}
         {/* Timeline */}
-        {dated.length===0&&undated.length===0
+        {datedPts.length===0&&undatedPts.length===0
           ?<div style={{textAlign:"center",padding:"46px 20px",color:"var(--text2)"}}>
              <div style={{fontSize:52,marginBottom:12}}>🗓️</div>
              <p style={{fontWeight:700,fontSize:16,color:"var(--text)",marginBottom:6}}>המסלול ריק</p>
@@ -2301,26 +2331,11 @@ export default function App(){
           :<>
             {days.map(day=>(<div key={day} style={{marginBottom:6}}>
               <div style={{fontSize:12,fontWeight:800,color:"var(--text2)",letterSpacing:".3px",margin:"8px 0 10px"}}>{fmtDay(day)}</div>
-              {byDay[day].map(s=>{const st=segType(s.type);const Ic=st.Icon;return(
-                <div key={s.id} style={{display:"flex",gap:10}}>
-                  <div style={{width:50,flexShrink:0,textAlign:"left",paddingTop:11}}>
-                    <div style={{fontSize:13,fontWeight:800,color:"var(--text)"}}>{s.startTime||"—"}</div>
-                    {s.endTime&&s.endDate===s.startDate&&<div style={{fontSize:10,color:"var(--text2)",marginTop:2}}>{s.endTime}</div>}
-                  </div>
-                  <div style={{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0}}>
-                    <div style={{width:34,height:34,borderRadius:"50%",background:st.color,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:`0 3px 10px ${st.color}55`}}><Ic size={16} color="#fff"/></div>
-                    <div style={{flex:1,width:2,background:"var(--border)",minHeight:14}}/>
-                  </div>
-                  {segCard(s)}
-                </div>);})}
+              {byDay[day].map(p=>renderRow(p,true))}
             </div>))}
-            {undated.length>0&&<div style={{marginTop:6}}>
+            {undatedPts.length>0&&<div style={{marginTop:6}}>
               <div style={{fontSize:12,fontWeight:800,color:"var(--text2)",margin:"8px 0 10px"}}>ללא תאריך</div>
-              {undated.map(s=>{const st=segType(s.type);const Ic=st.Icon;return(
-                <div key={s.id} style={{display:"flex",gap:10}}>
-                  <div style={{width:34,height:34,borderRadius:"50%",background:st.color,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:2}}><Ic size={16} color="#fff"/></div>
-                  {segCard(s)}
-                </div>);})}
+              {undatedPts.map(p=>renderRow(p,false))}
             </div>}
           </>}
       </div><TabBar/></div>);
