@@ -2243,9 +2243,19 @@ export default function App(){
           <div onClick={()=>openSeg(s)} style={{cursor:"pointer",paddingInlineEnd:70}}>
             <div style={{fontWeight:800,fontSize:14,marginBottom:2}}>{segTitle(s)}</div>
             {s.provider&&<div style={{fontSize:12,color:"var(--text2)"}}>{s.provider}</div>}
+            {(()=>{const fd=d=>{if(!d)return"";const p=(""+d).split("-");return p.length===3?`${p[2]}/${p[1]}`:d;};
+              const isF=s.type==="flight",isH=s.type==="hotel",isCarT=s.type==="car";
+              const sl=isF?"המראה":isH?"צ׳ק-אין":isCarT?"איסוף":"התחלה";
+              const el=isF?"נחיתה":isH?"צ׳ק-אאוט":isCarT?"החזרה":"סיום";
+              const hasStart=s.startDate||s.startTime, hasEnd=s.endDate||s.endTime;
+              if(!hasStart&&!hasEnd)return null;
+              const row=(lbl,d,t)=>(<div><span style={{color:"var(--text2)"}}>{lbl}: </span><b style={{color:"var(--text)"}}>{fd(d)}{(fd(d)&&t)?" · ":""}{t||""}</b></div>);
+              return(<div style={{fontSize:11.5,marginTop:5,lineHeight:1.75}}>
+                {hasStart&&row(sl,s.startDate,s.startTime)}
+                {hasEnd&&row(el,s.endDate||s.startDate,s.endTime)}
+              </div>);})()}
             {s.confirmation&&<div style={{fontSize:11,color:"var(--text2)",marginTop:3}}>אישור: <b style={{color:"var(--text)"}}>{s.confirmation}</b></div>}
             {s.seat&&<div style={{fontSize:11,color:"var(--text2)"}}>מושב: {s.seat}</div>}
-            {(s.endDate&&s.endDate!==s.startDate)&&<div style={{fontSize:11,color:"var(--text2)",marginTop:3}}>עד {s.endDate}{s.endTime?` · ${s.endTime}`:""}</div>}
             {s.location&&<div style={{fontSize:11,color:"var(--text2)",marginTop:3,display:"flex",alignItems:"center",gap:3}}><MapPin size={10}/>{s.location}</div>}
             {s.note&&<div style={{fontSize:11,color:"var(--text2)",marginTop:3,fontStyle:"italic"}}>{s.note}</div>}
           </div>
