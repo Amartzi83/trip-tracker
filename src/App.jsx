@@ -133,6 +133,17 @@ const COUNTRY_ISO=Object.fromEntries([...COUNTRIES.map(c=>[c.en,c.iso]),...COUNT
 const HE2EN=Object.fromEntries(COUNTRIES.map(c=>[c.he,c.en])); // Hebrew country name → English (for image search)
 // Key used to look up / cache a trip's scenery photo: its country, or its name if no country set.
 const tripImgKey=(t)=>((t&&t.country&&t.country.trim())||(t&&t.name&&t.name.trim())||"");
+// ISO code for a trip from its country field, or its name if country is blank.
+const flagIsoOf=(t)=>COUNTRY_ISO[((t&&t.country)||"").trim()]||COUNTRY_ISO[((t&&t.name)||"").trim()]||"";
+// Real flag image (Windows can't render flag emoji). Source: worldometers, with a
+// flagcdn fallback if that ever fails to load.
+function FlagImg({iso,style}){
+  if(!iso)return null;
+  const lo=iso.toLowerCase();
+  return <img src={`https://www.worldometers.info/img/flags/${lo}-flag.gif`} alt={iso}
+    onError={(e)=>{if(e.currentTarget.dataset.fb)return;e.currentTarget.dataset.fb="1";e.currentTarget.src=`https://flagcdn.com/w160/${lo}.png`;}}
+    style={style}/>;
+}
 function isoToFlag(iso){if(!iso||iso.length!==2)return"🌍";return String.fromCodePoint(...iso.toUpperCase().split('').map(c=>0x1F1E6+c.charCodeAt(0)-65));}
 
 const LANGS=[{code:"en",name:"English",flag:"🇬🇧"},{code:"he",name:"Hebrew",flag:"🇮🇱"},{code:"th",name:"Thai",flag:"🇹🇭"},{code:"es",name:"Spanish",flag:"🇪🇸"},{code:"fr",name:"French",flag:"🇫🇷"},{code:"de",name:"German",flag:"🇩🇪"},{code:"it",name:"Italian",flag:"🇮🇹"},{code:"pt",name:"Portuguese",flag:"🇵🇹"},{code:"ja",name:"Japanese",flag:"🇯🇵"},{code:"zh",name:"Chinese",flag:"🇨🇳"},{code:"ko",name:"Korean",flag:"🇰🇷"},{code:"ar",name:"Arabic",flag:"🇸🇦"},{code:"tr",name:"Turkish",flag:"🇹🇷"},{code:"ru",name:"Russian",flag:"🇷🇺"},{code:"hi",name:"Hindi",flag:"🇮🇳"},{code:"vi",name:"Vietnamese",flag:"🇻🇳"},{code:"el",name:"Greek",flag:"🇬🇷"},{code:"nl",name:"Dutch",flag:"🇳🇱"},{code:"ro",name:"Romanian",flag:"🇷🇴"}];
@@ -1189,9 +1200,9 @@ export default function App(){
                       {start&&end&&now>=start&&now<=end?" · בטיול עכשיו!":""}
                     </div>
                   </div>
-                  <div style={{width:44,height:44,borderRadius:14,background:"rgba(255,255,255,0.18)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                    <Plane size={20} color="#fff"/>
-                  </div>
+                  {flagIsoOf(t)
+                    ?<FlagImg iso={flagIsoOf(t)} style={{width:48,height:"auto",borderRadius:7,boxShadow:"0 2px 8px rgba(0,0,0,.35)",display:"block"}}/>
+                    :<div style={{width:44,height:44,borderRadius:14,background:"rgba(255,255,255,0.18)",display:"flex",alignItems:"center",justifyContent:"center"}}><Plane size={20} color="#fff"/></div>}
                 </div>
                 {days&&days>0&&<div style={{marginTop:14,display:"flex",gap:3,position:"relative",zIndex:2}}>
                   {Array.from({length:Math.min(total,20)}).map((_,i)=>(
@@ -1262,7 +1273,9 @@ export default function App(){
                 <div style={{position:"absolute",top:0,left:0,right:0,bottom:0,background:countryImgs[tripImgKey(t)]?"linear-gradient(180deg,rgba(0,0,0,0.35),rgba(0,0,0,0.65))":"linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,0.5))"}}/>
                 <div style={{position:"relative",zIndex:1,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                   <div>
-                    <div style={{fontSize:40,lineHeight:1,marginBottom:6}}>{gF(t.country)}</div>
+                    {flagIsoOf(t)
+                      ?<FlagImg iso={flagIsoOf(t)} style={{width:54,height:"auto",borderRadius:5,marginBottom:8,boxShadow:"0 2px 10px rgba(0,0,0,.45)",display:"block"}}/>
+                      :<div style={{fontSize:40,lineHeight:1,marginBottom:6}}>{gF(t.country)}</div>}
                     <div style={{fontWeight:900,fontSize:20,letterSpacing:"-0.4px",textShadow:"0 2px 8px rgba(0,0,0,.3)"}}>{t.name}</div>
                     {t.isShared&&<div style={{display:"inline-flex",alignItems:"center",gap:4,marginTop:7,background:"rgba(255,255,255,0.25)",borderRadius:8,padding:"2px 9px",fontSize:11,fontWeight:800,backdropFilter:"blur(4px)"}}><Users size={11}/>משותף</div>}
                   </div>
@@ -2225,7 +2238,9 @@ export default function App(){
             </div></>}</div></div>
 
         <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:22}}>
-          <span style={{fontSize:40,lineHeight:1}}>{gF(trip.country)}</span>
+          {flagIsoOf(trip)
+            ?<FlagImg iso={flagIsoOf(trip)} style={{width:46,height:"auto",borderRadius:4,boxShadow:"0 2px 8px rgba(0,0,0,.2)",display:"block"}}/>
+            :<span style={{fontSize:40,lineHeight:1}}>{gF(trip.country)}</span>}
           <div style={{flex:1}}><h2 style={{fontSize:22,fontWeight:800,letterSpacing:"-0.4px"}}>{trip.name}</h2><p style={{fontSize:12,color:"var(--text2)",display:"flex",alignItems:"center",gap:4,marginTop:2}}><Clock size={12}/>{trip.startDate} → {trip.endDate||"?"}</p></div>
         </div>
 
