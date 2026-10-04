@@ -641,7 +641,9 @@ export default function App(){
       mapObj.current=L.map(mapRef.current,{attributionControl:false}).setView([20,0],2);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18}).addTo(mapObj.current);
       markersLayer.current=L.layerGroup().addTo(mapObj.current);
-      setTimeout(()=>{if(mapObj.current&&!cancelled){mapObj.current.invalidateSize();renderPinMarkers(L);}},180);
+      // invalidateSize repeatedly while the layout settles, so tiles never render blank
+      [120,400,900,1500].forEach(d=>setTimeout(()=>{if(mapObj.current&&!cancelled)mapObj.current.invalidateSize();},d));
+      setTimeout(()=>{if(mapObj.current&&!cancelled)renderPinMarkers(L);},260);
     }).catch(()=>{});
     return ()=>{cancelled=true;if(mapObj.current){try{mapObj.current.remove()}catch{}mapObj.current=null;markersLayer.current=null;}};
   },[screen]);
