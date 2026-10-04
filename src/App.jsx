@@ -2232,15 +2232,23 @@ export default function App(){
       const fmtDay=d=>{try{return new Date(d+"T00:00:00").toLocaleDateString("he-IL",{weekday:"long",day:"numeric",month:"long"});}catch{return d;}};
       const wc=l=>l==="error"?"#E63946":l==="warn"?"#C77700":"#1E5BD6";
       const wbg=l=>l==="error"?"rgba(230,57,70,.08)":l==="warn"?"rgba(229,142,38,.12)":"rgba(30,91,214,.07)";
+      const openSeg=s=>{setEditSeg({...s});setSub("editSeg");};
+      const segIconBtn={width:30,height:30,borderRadius:9,border:"1px solid var(--border)",background:"var(--bg)",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,padding:0};
       const segCard=s=>{const st=segType(s.type);const Ic=st.Icon;return(
-        <div key={s.id} onClick={()=>{setEditSeg({...s});setSub("editSeg");}} style={{...C,flex:1,padding:"12px 14px",marginBottom:8,cursor:"pointer"}}>
-          <div style={{fontWeight:800,fontSize:14,marginBottom:2}}>{segTitle(s)}</div>
-          {s.provider&&<div style={{fontSize:12,color:"var(--text2)"}}>{s.provider}</div>}
-          {s.confirmation&&<div style={{fontSize:11,color:"var(--text2)",marginTop:3}}>אישור: <b style={{color:"var(--text)"}}>{s.confirmation}</b></div>}
-          {s.seat&&<div style={{fontSize:11,color:"var(--text2)"}}>מושב: {s.seat}</div>}
-          {(s.endDate&&s.endDate!==s.startDate)&&<div style={{fontSize:11,color:"var(--text2)",marginTop:3}}>עד {s.endDate}{s.endTime?` · ${s.endTime}`:""}</div>}
-          {s.location&&<div style={{fontSize:11,color:"var(--text2)",marginTop:3,display:"flex",alignItems:"center",gap:3}}><MapPin size={10}/>{s.location}</div>}
-          {s.note&&<div style={{fontSize:11,color:"var(--text2)",marginTop:3,fontStyle:"italic"}}>{s.note}</div>}
+        <div key={s.id} style={{...C,flex:1,padding:"12px 14px",marginBottom:8,position:"relative"}}>
+          <div style={{position:"absolute",top:10,insetInlineEnd:10,display:"flex",gap:6}}>
+            <button onClick={()=>openSeg(s)} title="עריכה" style={segIconBtn}><Pencil size={14} color="var(--accent)"/></button>
+            <button onClick={()=>{if(window.confirm("למחוק את הפריט מהמסלול?"))delSeg(s.id);}} title="מחיקה" style={segIconBtn}><Trash2 size={14} color="var(--red)"/></button>
+          </div>
+          <div onClick={()=>openSeg(s)} style={{cursor:"pointer",paddingInlineEnd:70}}>
+            <div style={{fontWeight:800,fontSize:14,marginBottom:2}}>{segTitle(s)}</div>
+            {s.provider&&<div style={{fontSize:12,color:"var(--text2)"}}>{s.provider}</div>}
+            {s.confirmation&&<div style={{fontSize:11,color:"var(--text2)",marginTop:3}}>אישור: <b style={{color:"var(--text)"}}>{s.confirmation}</b></div>}
+            {s.seat&&<div style={{fontSize:11,color:"var(--text2)"}}>מושב: {s.seat}</div>}
+            {(s.endDate&&s.endDate!==s.startDate)&&<div style={{fontSize:11,color:"var(--text2)",marginTop:3}}>עד {s.endDate}{s.endTime?` · ${s.endTime}`:""}</div>}
+            {s.location&&<div style={{fontSize:11,color:"var(--text2)",marginTop:3,display:"flex",alignItems:"center",gap:3}}><MapPin size={10}/>{s.location}</div>}
+            {s.note&&<div style={{fontSize:11,color:"var(--text2)",marginTop:3,fontStyle:"italic"}}>{s.note}</div>}
+          </div>
         </div>);};
       return(<div style={{minHeight:"100vh",background:"var(--bg)",padding:"16px 16px 100px"}}><style>{css}</style>{toastEl}<div style={{maxWidth:480,margin:"0 auto"}}>
         <h2 style={{fontSize:22,fontWeight:800,marginBottom:16,display:"flex",alignItems:"center",gap:8}}><Route size={22} style={{color:"var(--accent)"}}/>מסלול הטיול</h2>
